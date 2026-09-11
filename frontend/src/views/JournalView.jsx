@@ -1,6 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import {
-  Calendar, Flame, CheckCircle2, Sparkles, Plus, Trash2, BookOpen, Smile, Trophy
+  Calendar, Flame, CheckCircle2, Sparkles, Plus, Trash2, BookOpen, Smile, Trophy, X, Eye, Edit3
 } from 'lucide-react';
 
 export default function JournalView({
@@ -20,6 +20,9 @@ export default function JournalView({
   const [reflectionsText, setReflectionsText] = useState(currentJournal?.reflections || '');
   const [winsText, setWinsText] = useState(currentJournal?.wins || '');
   const [saveSuccessMsg, setSaveSuccessMsg] = useState('');
+
+  // History entry pop-up modal state
+  const [viewingJournal, setViewingJournal] = useState(null);
 
   // Habit modal form state
   const [showHabitForm, setShowHabitForm] = useState(false);
@@ -218,7 +221,7 @@ export default function JournalView({
               {journals.map(j => (
                 <div
                   key={j.id}
-                  onClick={() => setSelectedDate(j.entry_date)}
+                  onClick={() => setViewingJournal(j)}
                   style={{
                     padding: '10px 14px',
                     borderRadius: 'var(--radius-md)',
@@ -230,15 +233,23 @@ export default function JournalView({
                     alignItems: 'center'
                   }}
                 >
-                  <div>
+                  <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
                     <span style={{ fontSize: '13px', fontWeight: '600' }}>{j.entry_date}</span>
-                    <span style={{ fontSize: '12px', color: 'var(--text-muted)', marginLeft: '10px' }}>
-                      {j.wins ? j.wins.slice(0, 40) + '...' : j.reflections ? j.reflections.slice(0, 40) + '...' : 'No notes'}
+                    <span style={{ fontSize: '12px', color: 'var(--text-muted)', marginLeft: '6px' }}>
+                      {j.wins ? j.wins.slice(0, 35) + '...' : j.reflections ? j.reflections.slice(0, 35) + '...' : 'No notes'}
                     </span>
                   </div>
-                  <span style={{ fontSize: '12px', fontWeight: '700', color: 'var(--accent-warning)' }}>
-                    {j.mood_rating || 5}★
-                  </span>
+                  <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
+                    <span style={{ fontSize: '12px', fontWeight: '700', color: 'var(--accent-warning)' }}>
+                      {j.mood_rating || 5}★
+                    </span>
+                    <button
+                      onClick={(e) => { e.stopPropagation(); setViewingJournal(j); }}
+                      style={{ padding: '3px 8px', borderRadius: 'var(--radius-sm)', border: '1px solid var(--border-subtle)', background: 'var(--bg-surface)', fontSize: '11px', color: 'var(--accent-primary)', fontWeight: '600', cursor: 'pointer', display: 'flex', alignItems: 'center', gap: '3px' }}
+                    >
+                      <Eye size={12} /> View Log
+                    </button>
+                  </div>
                 </div>
               ))}
             </div>
@@ -340,6 +351,68 @@ export default function JournalView({
           </div>
         </div>
       </div>
+
+      {/* Journal Entry History Pop-up Modal */}
+      {viewingJournal && (
+        <div style={{ position: 'fixed', inset: 0, background: 'rgba(0,0,0,0.5)', backdropFilter: 'blur(4px)', display: 'flex', alignItems: 'center', justifyContent: 'center', zIndex: 1000 }}>
+          <div className="card" style={{ width: '560px', background: 'var(--bg-surface)', padding: '24px', borderRadius: 'var(--radius-lg)' }}>
+            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '16px', borderBottom: '1px solid var(--border-subtle)', paddingBottom: '12px' }}>
+              <div>
+                <h3 style={{ fontWeight: '700', fontSize: '17px', display: 'flex', alignItems: 'center', gap: '8px' }}>
+                  <Calendar size={18} color="var(--accent-primary)" /> Journal Log: {viewingJournal.entry_date}
+                </h3>
+                <div style={{ fontSize: '12px', color: 'var(--text-secondary)', marginTop: '4px' }}>
+                  Mood Rating: <strong style={{ color: 'var(--accent-warning)' }}>{viewingJournal.mood_rating || 5}★ / 5★</strong>
+                </div>
+              </div>
+              <button onClick={() => setViewingJournal(null)} style={{ background: 'transparent', border: 'none', cursor: 'pointer', color: 'var(--text-muted)' }}>
+                <X size={20} />
+              </button>
+            </div>
+
+            <div style={{ display: 'flex', flexDirection: 'column', gap: '16px', maxHeight: '60vh', overflowY: 'auto' }}>
+              <div>
+                <h4 style={{ fontSize: '13px', fontWeight: '700', color: 'var(--accent-primary)', marginBottom: '6px', display: 'flex', alignItems: 'center', gap: '6px' }}>
+                  <Trophy size={14} /> Key Wins & Accomplishments
+                </h4>
+                <div style={{ background: 'var(--bg-card)', padding: '12px 14px', borderRadius: 'var(--radius-md)', border: '1px solid var(--border-subtle)', fontSize: '13.5px', lineHeight: '1.6', whiteSpace: 'pre-wrap' }}>
+                  {viewingJournal.wins || <span style={{ color: 'var(--text-muted)', fontStyle: 'italic' }}>No wins recorded for this entry.</span>}
+                </div>
+              </div>
+
+              <div>
+                <h4 style={{ fontSize: '13px', fontWeight: '700', color: 'var(--accent-primary)', marginBottom: '6px', display: 'flex', alignItems: 'center', gap: '6px' }}>
+                  <BookOpen size={14} /> Daily Reflections & Summary
+                </h4>
+                <div style={{ background: 'var(--bg-card)', padding: '12px 14px', borderRadius: 'var(--radius-md)', border: '1px solid var(--border-subtle)', fontSize: '13.5px', lineHeight: '1.6', whiteSpace: 'pre-wrap' }}>
+                  {viewingJournal.reflections || <span style={{ color: 'var(--text-muted)', fontStyle: 'italic' }}>No reflection summary recorded.</span>}
+                </div>
+              </div>
+            </div>
+
+            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginTop: '20px', borderTop: '1px solid var(--border-subtle)', paddingTop: '14px' }}>
+              <button
+                type="button"
+                onClick={() => {
+                  setSelectedDate(viewingJournal.entry_date);
+                  setViewingJournal(null);
+                }}
+                style={{ padding: '8px 14px', borderRadius: 'var(--radius-md)', border: '1px solid var(--accent-primary)', background: 'rgba(99,102,241,0.1)', color: 'var(--accent-primary)', fontWeight: '600', fontSize: '12px', cursor: 'pointer', display: 'flex', alignItems: 'center', gap: '6px' }}
+              >
+                <Edit3 size={13} /> Edit Entry in Form
+              </button>
+
+              <button
+                type="button"
+                onClick={() => setViewingJournal(null)}
+                style={{ padding: '8px 16px', borderRadius: 'var(--radius-md)', background: 'var(--accent-primary)', color: 'white', border: 'none', fontWeight: '600', fontSize: '12px', cursor: 'pointer' }}
+              >
+                Close
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
     </div>
   );
 }
