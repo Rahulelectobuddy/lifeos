@@ -55,6 +55,97 @@ async def ensure_default_workspace(db: AsyncSession):
         db.add(ws)
         await db.commit()
 
+    # Auto-seed demo data if notes table is empty
+    note_stmt = select(Note).where(Note.workspace_id == DEFAULT_WS_ID)
+    note_res = await db.execute(note_stmt)
+    if len(note_res.scalars().all()) == 0:
+        await populate_seed_data(db)
+
+
+async def populate_seed_data(db: AsyncSession):
+    # 1. Seed Notes
+    demo_notes = [
+        Note(
+            id="nt-1",
+            workspace_id=DEFAULT_WS_ID,
+            title="Proxmox VE Homelab Cluster Architecture & RTX 4090 Passthrough",
+            content="## Infrastructure Specification\n\n- Primary Node: AMD EPYC 7002 series (64 Core)\n- Passthrough GPU: RTX 4090 24GB VRAM\n- Storage Pool: ZFS RaidZ2 4x 4TB NVMe SSDs\n\n### Backlink Connections\n- See [[Project - Migrate Homelab to Proxmox VE]]\n- Linked to [[Daily Log 2026-09-10]]",
+            para_category="Resource",
+            folder_path="Infrastructure",
+            tags="proxmox, homelab, hardware, zfs",
+            is_pinned=True,
+        ),
+        Note(
+            id="nt-2",
+            workspace_id=DEFAULT_WS_ID,
+            title="Cypher LifeOS Design Tokens & HSL Color Palette Specifications",
+            content="### Light Theme Default Token System\n\n- Soft Off-white canvas: `hsl(220, 20%, 97%)`\n- Pure white card surface: `hsl(0, 0%, 100%)`\n- Deep charcoal typography: `hsl(222, 25%, 12%)`\n- Glassmorphism backdrop blur: `12px`",
+            para_category="Resource",
+            folder_path="Design",
+            tags="design, css, tokens, design-system",
+            is_pinned=True,
+        ),
+        Note(
+            id="nt-3",
+            workspace_id=DEFAULT_WS_ID,
+            title="Weekly Architecture Review & Production Refactoring Log",
+            content="Completed 6-screen Web wireframe suite in Penpot with 89 interactive prototyping triggers.",
+            para_category="Archive",
+            folder_path="General",
+            tags="review, architecture, web",
+            is_pinned=False,
+        )
+    ]
+    db.add_all(demo_notes)
+
+    # 2. Seed Tasks
+    demo_tasks = [
+        Task(id="tsk-1", workspace_id=DEFAULT_WS_ID, title="Review Proxmox VE Backup Server ZFS Snapshot", status="completed", priority="high", para_category="Project", target_name="Migrate Homelab to Proxmox VE", due_date="2026-09-11"),
+        Task(id="tsk-2", workspace_id=DEFAULT_WS_ID, title="Implement FastAPI Modular Monolith API Routers", status="in_progress", priority="urgent", para_category="Project", target_name="Life OS Web MVP Release v1.0", due_date="2026-09-11"),
+        Task(id="tsk-3", workspace_id=DEFAULT_WS_ID, title="Audit Penpot 6-screen Web Prototyping Transitions", status="completed", priority="medium", para_category="Resource", target_name="", due_date="2026-09-10"),
+        Task(id="tsk-4", workspace_id=DEFAULT_WS_ID, title="Log Daily Habits & Reflection Entry", status="todo", priority="medium", para_category="Area", target_name="Personal Growth", due_date="2026-09-11"),
+        Task(id="tsk-5", workspace_id=DEFAULT_WS_ID, title="Test Command Palette (⌘K) Keyboard Shortcuts", status="todo", priority="low", para_category="Project", target_name="Life OS Web MVP Release v1.0", due_date="2026-09-12"),
+    ]
+    db.add_all(demo_tasks)
+
+    # 3. Seed Projects
+    demo_projects = [
+        Project(id="prj-1", workspace_id=DEFAULT_WS_ID, title="Migrate Homelab to Proxmox VE", description="Cluster migration with ZFS storage and GPU passthrough.", progress=85, target_date="2026-09-30", status="active"),
+        Project(id="prj-2", workspace_id=DEFAULT_WS_ID, title="Life OS Web MVP Release v1.0", description="Vite + React responsive web application deployment.", progress=90, target_date="2026-09-15", status="active"),
+        Project(id="prj-3", workspace_id=DEFAULT_WS_ID, title="Universal Knowledge Graph Engine", description="Polymorphic relationship graph and backlink inspector.", progress=60, target_date="2026-10-01", status="active"),
+    ]
+    db.add_all(demo_projects)
+
+    # 4. Seed Daily Journal
+    demo_journal = DailyJournal(
+        id="jnl-1",
+        workspace_id=DEFAULT_WS_ID,
+        entry_date="2026-09-11",
+        mood_rating=5,
+        reflections="Great velocity today! Delivered full end-to-end Penpot interactive wireframes for Web, updated all project documentation, defined backend architecture, and launched local execution build.",
+        wins="1. Completed Penpot 6-screen web wireframe suite.\n2. Standardized Light Mode design tokens.\n3. Defined FastAPI backend architecture."
+    )
+    db.add(demo_journal)
+
+    # 5. Seed Habits
+    demo_habits = [
+        Habit(id="hbt-1", workspace_id=DEFAULT_WS_ID, name="Morning Deep Work Session (2 Hours)", streak_count=14, is_completed_today=True),
+        Habit(id="hbt-2", workspace_id=DEFAULT_WS_ID, name="Daily Habit & Reflection Journaling", streak_count=9, is_completed_today=True),
+        Habit(id="hbt-3", workspace_id=DEFAULT_WS_ID, name="Physical Workout / Cardio (45 Min)", streak_count=5, is_completed_today=False),
+        Habit(id="hbt-4", workspace_id=DEFAULT_WS_ID, name="Read 20 Pages of Technical Literature", streak_count=12, is_completed_today=True),
+    ]
+    db.add_all(demo_habits)
+
+    # 6. Seed Entity Links (Life Graph)
+    demo_links = [
+        EntityLink(id="lnk-1", workspace_id=DEFAULT_WS_ID, source_type="note", source_id="nt-1", target_type="project", target_id="prj-1", link_type="supports"),
+        EntityLink(id="lnk-2", workspace_id=DEFAULT_WS_ID, source_type="task", source_id="tsk-1", target_type="project", target_id="prj-1", link_type="subtask_of"),
+        EntityLink(id="lnk-3", workspace_id=DEFAULT_WS_ID, source_type="note", source_id="nt-2", target_type="project", target_id="prj-2", link_type="defines_spec"),
+        EntityLink(id="lnk-4", workspace_id=DEFAULT_WS_ID, source_type="journal", source_id="jnl-1", target_type="task", target_id="tsk-2", link_type="logs_progress"),
+    ]
+    db.add_all(demo_links)
+    await db.commit()
+
 
 # ============================================================================
 # SEED DATA ENDPOINT
@@ -209,12 +300,22 @@ async def update_note(note_id: str, note_update: schemas.NoteUpdate, db: AsyncSe
     stmt = select(Note).where(Note.id == note_id).where(Note.workspace_id == DEFAULT_WS_ID)
     res = await db.execute(stmt)
     note = res.scalar_one_or_none()
-    if not note:
-        raise HTTPException(status_code=404, detail="Note not found")
-    
     update_data = note_update.model_dump(exclude_unset=True)
-    for field, val in update_data.items():
-        setattr(note, field, val)
+    if not note:
+        note = Note(
+            id=note_id,
+            workspace_id=DEFAULT_WS_ID,
+            title=update_data.get("title", "Untitled Note"),
+            content=update_data.get("content", ""),
+            para_category=update_data.get("para_category", "Resource"),
+            folder_path=update_data.get("folder_path", "General"),
+            tags=update_data.get("tags", ""),
+            is_pinned=update_data.get("is_pinned", False)
+        )
+        db.add(note)
+    else:
+        for field, val in update_data.items():
+            setattr(note, field, val)
     
     await db.commit()
     await db.refresh(note)
@@ -268,12 +369,23 @@ async def update_task(task_id: str, task_update: schemas.TaskUpdate, db: AsyncSe
     stmt = select(Task).where(Task.id == task_id).where(Task.workspace_id == DEFAULT_WS_ID)
     res = await db.execute(stmt)
     task = res.scalar_one_or_none()
-    if not task:
-        raise HTTPException(status_code=404, detail="Task not found")
-    
     update_data = task_update.model_dump(exclude_unset=True)
-    for field, val in update_data.items():
-        setattr(task, field, val)
+    if not task:
+        task = Task(
+            id=task_id,
+            workspace_id=DEFAULT_WS_ID,
+            title=update_data.get("title", "Untitled Task"),
+            description=update_data.get("description", ""),
+            status=update_data.get("status", "todo"),
+            priority=update_data.get("priority", "medium"),
+            para_category=update_data.get("para_category", "Project"),
+            target_name=update_data.get("target_name", ""),
+            due_date=update_data.get("due_date", "")
+        )
+        db.add(task)
+    else:
+        for field, val in update_data.items():
+            setattr(task, field, val)
     
     await db.commit()
     await db.refresh(task)
@@ -321,12 +433,21 @@ async def update_project(project_id: str, project_update: schemas.ProjectUpdate,
     stmt = select(Project).where(Project.id == project_id).where(Project.workspace_id == DEFAULT_WS_ID)
     res = await db.execute(stmt)
     project = res.scalar_one_or_none()
-    if not project:
-        raise HTTPException(status_code=404, detail="Project not found")
-    
     update_data = project_update.model_dump(exclude_unset=True)
-    for field, val in update_data.items():
-        setattr(project, field, val)
+    if not project:
+        project = Project(
+            id=project_id,
+            workspace_id=DEFAULT_WS_ID,
+            title=update_data.get("title", "Untitled Project"),
+            description=update_data.get("description", ""),
+            progress=update_data.get("progress", 0),
+            target_date=update_data.get("target_date", ""),
+            status=update_data.get("status", "active")
+        )
+        db.add(project)
+    else:
+        for field, val in update_data.items():
+            setattr(project, field, val)
     
     await db.commit()
     await db.refresh(project)
