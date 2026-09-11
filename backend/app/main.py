@@ -5,11 +5,25 @@ from app.core.config import settings
 from app.core.database import engine, Base
 from app.api.v1.api import api_router
 
+from sqlalchemy import text
+
 @asynccontextmanager
 async def lifespan(app: FastAPI):
     # Startup: Initialize DDL Tables in database
     async with engine.begin() as conn:
         await conn.run_sync(Base.metadata.create_all)
+        
+        # Execute column migrations safely for existing tables
+        migration_queries = [
+            "ALTER TABLE notes ADD COLUMN IF NOT EXISTS parent_id VARCHAR(36);",
+            "ALTER TABLE notes ADD COLUMN IF NOT EXISTS folder_path VARCHAR(255) DEFAULT 'General';",
+            "ALTER TABLE tasks ADD COLUMN IF NOT EXISTS target_name VARCHAR(255) DEFAULT '';"
+        ]
+        for query in migration_queries:
+            try:
+                await conn.execute(text(query))
+            except Exception as e:
+                print(f"Migration query execution note: {e}")
     yield
     # Shutdown
     await engine.dispose()
