@@ -1,7 +1,5 @@
 import React, { useState, useEffect } from 'react';
 import Header from './components/Header';
-import Sidebar from './components/Sidebar';
-import RightContextPanel from './components/RightContextPanel';
 
 import HomeView from './views/HomeView';
 import NotesView from './views/NotesView';
@@ -357,8 +355,6 @@ export default function App() {
       />
 
       <div className="app-body">
-        <Sidebar currentView={currentView} onChangeView={setCurrentView} />
-
         <main className="main-viewport">
           {currentView === 'home' && (
             <HomeView
@@ -415,8 +411,6 @@ export default function App() {
             />
           )}
         </main>
-
-        <RightContextPanel currentView={currentView} />
       </div>
 
       <CommandPaletteModal

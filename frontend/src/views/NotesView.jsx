@@ -1,8 +1,87 @@
 import React, { useState, useEffect } from 'react';
 import {
   BookOpen, Pin, Tag, Share2, Plus, FileText, Link2, Trash2, Search,
-  Filter, Edit3, Check, X, Folder, FolderOpen, ChevronRight, ChevronDown, FileCode
+  Filter, Edit3, Check, X, Folder, FolderOpen, ChevronRight, ChevronDown, FileCode, Eye
 } from 'lucide-react';
+
+// Markdown Preview Renderer Helper
+function MarkdownPreview({ content }) {
+  if (!content) {
+    return <span style={{ color: 'var(--text-muted)', fontStyle: 'italic' }}>Empty note content. Click Edit Markdown to add details.</span>;
+  }
+
+  const lines = content.split('\n');
+  const elements = [];
+  let inCodeBlock = false;
+  let codeBlockLines = [];
+
+  const parseInlineMarkdown = (text) => {
+    // Process bold **text**, inline `code`, and [[backlinks]]
+    const parts = text.split(/(\*\*.*?\*\*|`.*?`|\[\[.*?\]\])/g);
+    return parts.map((part, i) => {
+      if (part.startsWith('**') && part.endsWith('**')) {
+        return <strong key={i}>{part.slice(2, -2)}</strong>;
+      }
+      if (part.startsWith('`') && part.endsWith('`')) {
+        return (
+          <code key={i} style={{ background: 'var(--bg-hover)', padding: '2px 6px', borderRadius: '4px', fontFamily: 'var(--font-mono)', fontSize: '12px', color: 'var(--accent-primary)' }}>
+            {part.slice(1, -1)}
+          </code>
+        );
+      }
+      if (part.startsWith('[[') && part.endsWith(']]')) {
+        return (
+          <span key={i} style={{ background: 'rgba(99, 102, 241, 0.12)', color: 'var(--accent-primary)', padding: '2px 6px', borderRadius: '4px', fontWeight: '600', fontSize: '12px', border: '1px solid rgba(99, 102, 241, 0.2)' }}>
+            {part}
+          </span>
+        );
+      }
+      return part;
+    });
+  };
+
+  lines.forEach((line, idx) => {
+    // Code block check
+    if (line.trim().startsWith('```')) {
+      if (inCodeBlock) {
+        elements.push(
+          <pre key={`code-${idx}`} style={{ background: 'var(--bg-surface)', padding: '12px 14px', borderRadius: 'var(--radius-md)', border: '1px solid var(--border-subtle)', fontFamily: 'var(--font-mono)', fontSize: '12.5px', color: 'var(--text-primary)', overflowX: 'auto', margin: '8px 0' }}>
+            <code>{codeBlockLines.join('\n')}</code>
+          </pre>
+        );
+        codeBlockLines = [];
+        inCodeBlock = false;
+      } else {
+        inCodeBlock = true;
+      }
+      return;
+    }
+
+    if (inCodeBlock) {
+      codeBlockLines.push(line);
+      return;
+    }
+
+    // Headings
+    if (line.startsWith('# ')) {
+      elements.push(<h1 key={idx} style={{ fontFamily: 'var(--font-header)', fontSize: '20px', fontWeight: '700', margin: '14px 0 8px', color: 'var(--text-primary)', borderBottom: '1px solid var(--border-subtle)', paddingBottom: '4px' }}>{parseInlineMarkdown(line.slice(2))}</h1>);
+    } else if (line.startsWith('## ')) {
+      elements.push(<h2 key={idx} style={{ fontFamily: 'var(--font-header)', fontSize: '17px', fontWeight: '700', margin: '12px 0 6px', color: 'var(--text-primary)' }}>{parseInlineMarkdown(line.slice(3))}</h2>);
+    } else if (line.startsWith('### ')) {
+      elements.push(<h3 key={idx} style={{ fontFamily: 'var(--font-header)', fontSize: '15px', fontWeight: '600', margin: '10px 0 4px', color: 'var(--text-primary)' }}>{parseInlineMarkdown(line.slice(4))}</h3>);
+    } else if (line.trim().startsWith('- ') || line.trim().startsWith('* ')) {
+      elements.push(<li key={idx} style={{ marginLeft: '20px', marginBottom: '4px', listStyleType: 'disc' }}>{parseInlineMarkdown(line.trim().slice(2))}</li>);
+    } else if (line.trim().startsWith('> ')) {
+      elements.push(<blockquote key={idx} style={{ borderLeft: '3px solid var(--accent-primary)', paddingLeft: '12px', margin: '8px 0', fontStyle: 'italic', color: 'var(--text-secondary)' }}>{parseInlineMarkdown(line.trim().slice(2))}</blockquote>);
+    } else if (line.trim() === '') {
+      elements.push(<div key={idx} style={{ height: '8px' }}></div>);
+    } else {
+      elements.push(<p key={idx} style={{ marginBottom: '6px', lineHeight: '1.6' }}>{parseInlineMarkdown(line)}</p>);
+    }
+  });
+
+  return <div style={{ display: 'flex', flexDirection: 'column' }}>{elements}</div>;
+}
 
 export default function NotesView({
   notes = [],
@@ -294,6 +373,9 @@ export default function NotesView({
                       <span style={{ fontSize: '12px', color: 'var(--text-muted)', display: 'flex', alignItems: 'center', gap: '4px' }}>
                         <Folder size={12} /> {activeNote.folder_path || 'General'}
                       </span>
+                      <span style={{ fontSize: '11px', background: 'rgba(16,185,129,0.12)', color: 'var(--accent-success)', padding: '2px 6px', borderRadius: '4px', fontWeight: '600', display: 'flex', alignItems: 'center', gap: '3px' }}>
+                        <Eye size={10} /> Markdown Preview Mode
+                      </span>
                     </div>
                     <h1 style={{ fontFamily: 'var(--font-header)', fontSize: '22px', fontWeight: '700' }}>
                       {activeNote.title}
@@ -394,10 +476,10 @@ export default function NotesView({
               </div>
             )}
 
-            {/* Content area */}
+            {/* Content area: Formatted Markdown Preview By Default */}
             {!isEditing ? (
-              <div style={{ flex: 1, fontFamily: 'var(--font-sans)', fontSize: '14px', lineHeight: '1.7', whiteSpace: 'pre-wrap', color: 'var(--text-primary)', background: 'var(--bg-card)', padding: '16px', borderRadius: 'var(--radius-md)', border: '1px solid var(--border-subtle)', overflowY: 'auto' }}>
-                {activeNote.content || <span style={{ color: 'var(--text-muted)', italic: 'true' }}>Empty note content. Click Edit Markdown to add details.</span>}
+              <div style={{ flex: 1, fontFamily: 'var(--font-sans)', fontSize: '14px', lineHeight: '1.7', color: 'var(--text-primary)', background: 'var(--bg-card)', padding: '20px', borderRadius: 'var(--radius-md)', border: '1px solid var(--border-subtle)', overflowY: 'auto' }}>
+                <MarkdownPreview content={activeNote.content} />
               </div>
             ) : (
               <textarea

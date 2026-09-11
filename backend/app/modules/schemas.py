@@ -44,6 +44,7 @@ class TaskBase(BaseModel):
     status: str = "todo"
     priority: str = "medium"
     para_category: str = "Project"
+    target_name: Optional[str] = ""
     due_date: Optional[str] = None
 
 class TaskCreate(TaskBase):
@@ -106,6 +107,7 @@ class TaskUpdate(BaseModel):
     status: Optional[str] = None
     priority: Optional[str] = None
     para_category: Optional[str] = None
+    target_name: Optional[str] = None
     due_date: Optional[str] = None
 
 class ProjectUpdate(BaseModel):

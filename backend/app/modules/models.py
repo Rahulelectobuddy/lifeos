@@ -54,6 +54,7 @@ class Task(Base):
     status: Mapped[str] = mapped_column(String(50), nullable=False, default="todo") # todo, in_progress, completed
     priority: Mapped[str] = mapped_column(String(20), nullable=False, default="medium") # urgent, high, medium, low
     para_category: Mapped[str] = mapped_column(String(50), nullable=False, default="Project")
+    target_name: Mapped[str] = mapped_column(String(255), nullable=True, default="") # project or area name
     due_date: Mapped[str] = mapped_column(String(50), nullable=True)
     created_at: Mapped[datetime] = mapped_column(DateTime, default=utc_now)
 

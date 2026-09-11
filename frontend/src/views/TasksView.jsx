@@ -1,7 +1,8 @@
 import React, { useState } from 'react';
 import {
   CheckCircle2, List, Kanban, Plus, Calendar, AlertCircle, Trash2,
-  FolderPlus, ArrowLeft, ArrowRight, Filter, Search, SlidersHorizontal, Clock, Target
+  FolderPlus, ArrowLeft, ArrowRight, Filter, Search, Edit3, Clock, Target,
+  FileText, Layers, X, Check
 } from 'lucide-react';
 
 export default function TasksView({
@@ -18,12 +19,34 @@ export default function TasksView({
   const [filterCategory, setFilterCategory] = useState('ALL');
   const [searchQuery, setSearchQuery] = useState('');
 
+  // Default standard Areas for suggestion
+  const standardAreas = [
+    'Health & Fitness',
+    'Finance & Wealth',
+    'Career & Deep Work',
+    'Homelab & Infrastructure',
+    'Personal Growth',
+    'Daily Routines'
+  ];
+
   // New task form state
   const [newTaskTitle, setNewTaskTitle] = useState('');
+  const [newTaskDesc, setNewTaskDesc] = useState('');
   const [newTaskPriority, setNewTaskPriority] = useState('medium');
   const [newTaskCategory, setNewTaskCategory] = useState('Project');
+  const [newTaskTargetName, setNewTaskTargetName] = useState('');
   const [newTaskDueDate, setNewTaskDueDate] = useState('');
   const [showTaskForm, setShowTaskForm] = useState(false);
+
+  // Pop-up Edit Task Modal State
+  const [editingTask, setEditingTask] = useState(null);
+  const [editTitle, setEditTitle] = useState('');
+  const [editDesc, setEditDesc] = useState('');
+  const [editStatus, setEditStatus] = useState('todo');
+  const [editPriority, setEditPriority] = useState('medium');
+  const [editCategory, setEditCategory] = useState('Project');
+  const [editTargetName, setEditTargetName] = useState('');
+  const [editDueDate, setEditDueDate] = useState('');
 
   // New project form state
   const [newProjTitle, setNewProjTitle] = useState('');
@@ -34,10 +57,41 @@ export default function TasksView({
   // Drag and drop state
   const [draggedTaskId, setDraggedTaskId] = useState(null);
 
+  // Open Edit Task Pop-up Modal
+  const openEditModal = (task) => {
+    setEditingTask(task);
+    setEditTitle(task.title || '');
+    setEditDesc(task.description || '');
+    setEditStatus(task.status || 'todo');
+    setEditPriority(task.priority || 'medium');
+    setEditCategory(task.para_category || 'Project');
+    setEditTargetName(task.target_name || '');
+    setEditDueDate(task.due_date || '');
+  };
+
+  const handleSaveTaskEdit = (e) => {
+    e.preventDefault();
+    if (!editingTask || !onUpdateTask) return;
+
+    onUpdateTask(editingTask.id, {
+      title: editTitle.trim(),
+      description: editDesc,
+      status: editStatus,
+      priority: editPriority,
+      para_category: editCategory,
+      target_name: editTargetName.trim(),
+      due_date: editDueDate || null
+    });
+
+    setEditingTask(null);
+  };
+
   // Filter tasks
   const filteredTasks = tasks.filter(t => {
     const matchesCategory = filterCategory === 'ALL' || (t.para_category && t.para_category.toUpperCase() === filterCategory.toUpperCase());
-    const matchesSearch = !searchQuery.trim() || t.title.toLowerCase().includes(searchQuery.toLowerCase());
+    const matchesSearch = !searchQuery.trim() ||
+      t.title.toLowerCase().includes(searchQuery.toLowerCase()) ||
+      (t.description && t.description.toLowerCase().includes(searchQuery.toLowerCase()));
     return matchesCategory && matchesSearch;
   });
 
@@ -53,14 +107,18 @@ export default function TasksView({
     if (onAddTask) {
       onAddTask({
         title: newTaskTitle.trim(),
+        description: newTaskDesc.trim(),
         status: 'todo',
         priority: newTaskPriority,
         para_category: newTaskCategory,
+        target_name: newTaskTargetName.trim(),
         due_date: newTaskDueDate || null
       });
     }
 
     setNewTaskTitle('');
+    setNewTaskDesc('');
+    setNewTaskTargetName('');
     setNewTaskDueDate('');
     setShowTaskForm(false);
   };
@@ -216,7 +274,25 @@ export default function TasksView({
                 width: '100%'
               }}
             />
-            <div style={{ display: 'grid', gridTemplateColumns: 'repeat(3, 1fr)', gap: '10px' }}>
+            <textarea
+              placeholder="Task description / notes (optional)..."
+              value={newTaskDesc}
+              onChange={(e) => setNewTaskDesc(e.target.value)}
+              rows={2}
+              style={{
+                padding: '10px 14px',
+                borderRadius: 'var(--radius-md)',
+                border: '1px solid var(--border-subtle)',
+                background: 'var(--bg-card)',
+                color: 'var(--text-primary)',
+                outline: 'none',
+                width: '100%',
+                resize: 'vertical',
+                fontSize: '13px'
+              }}
+            />
+
+            <div style={{ display: 'grid', gridTemplateColumns: 'repeat(4, 1fr)', gap: '10px' }}>
               <div>
                 <label style={{ fontSize: '11px', fontWeight: '600', color: 'var(--text-secondary)', display: 'block', marginBottom: '4px' }}>Priority</label>
                 <select
@@ -235,7 +311,10 @@ export default function TasksView({
                 <label style={{ fontSize: '11px', fontWeight: '600', color: 'var(--text-secondary)', display: 'block', marginBottom: '4px' }}>PARA Category</label>
                 <select
                   value={newTaskCategory}
-                  onChange={(e) => setNewTaskCategory(e.target.value)}
+                  onChange={(e) => {
+                    setNewTaskCategory(e.target.value);
+                    setNewTaskTargetName('');
+                  }}
                   style={{ width: '100%', padding: '8px', borderRadius: 'var(--radius-md)', border: '1px solid var(--border-subtle)', background: 'var(--bg-card)', color: 'var(--text-primary)' }}
                 >
                   <option value="Project">Project</option>
@@ -243,6 +322,44 @@ export default function TasksView({
                   <option value="Resource">Resource</option>
                   <option value="Archive">Archive</option>
                 </select>
+              </div>
+
+              {/* Dynamic Project or Area Selector/Input */}
+              <div>
+                <label style={{ fontSize: '11px', fontWeight: '600', color: 'var(--text-secondary)', display: 'block', marginBottom: '4px' }}>
+                  {newTaskCategory === 'Project' ? 'Linked Project' : newTaskCategory === 'Area' ? 'Linked Area' : 'Target Label'}
+                </label>
+                {newTaskCategory === 'Project' ? (
+                  <select
+                    value={newTaskTargetName}
+                    onChange={(e) => setNewTaskTargetName(e.target.value)}
+                    style={{ width: '100%', padding: '8px', borderRadius: 'var(--radius-md)', border: '1px solid var(--border-subtle)', background: 'var(--bg-card)', color: 'var(--text-primary)' }}
+                  >
+                    <option value="">Select Project...</option>
+                    {projects.map(p => (
+                      <option key={p.id} value={p.title}>{p.title}</option>
+                    ))}
+                  </select>
+                ) : newTaskCategory === 'Area' ? (
+                  <select
+                    value={newTaskTargetName}
+                    onChange={(e) => setNewTaskTargetName(e.target.value)}
+                    style={{ width: '100%', padding: '8px', borderRadius: 'var(--radius-md)', border: '1px solid var(--border-subtle)', background: 'var(--bg-card)', color: 'var(--text-primary)' }}
+                  >
+                    <option value="">Select Area...</option>
+                    {standardAreas.map(area => (
+                      <option key={area} value={area}>{area}</option>
+                    ))}
+                  </select>
+                ) : (
+                  <input
+                    type="text"
+                    placeholder="Custom label..."
+                    value={newTaskTargetName}
+                    onChange={(e) => setNewTaskTargetName(e.target.value)}
+                    style={{ width: '100%', padding: '8px', borderRadius: 'var(--radius-md)', border: '1px solid var(--border-subtle)', background: 'var(--bg-card)', color: 'var(--text-primary)' }}
+                  />
+                )}
               </div>
 
               <div>
@@ -348,7 +465,7 @@ export default function TasksView({
             <Search size={14} style={{ position: 'absolute', left: '12px', top: '50%', transform: 'translateY(-50%)', color: 'var(--text-muted)' }} />
             <input
               type="text"
-              placeholder="Search tasks..."
+              placeholder="Search tasks by title or description..."
               value={searchQuery}
               onChange={(e) => setSearchQuery(e.target.value)}
               style={{
@@ -417,29 +534,52 @@ export default function TasksView({
                       key={t.id}
                       draggable
                       onDragStart={(e) => handleDragStart(e, t.id)}
+                      onClick={() => openEditModal(t)}
                       style={{
                         background: 'var(--bg-surface)',
                         padding: '12px',
                         borderRadius: 'var(--radius-md)',
                         border: '1px solid var(--border-subtle)',
-                        cursor: 'grab',
+                        cursor: 'pointer',
                         transition: 'transform 0.15s ease, box-shadow 0.15s ease'
                       }}
                     >
-                      <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', marginBottom: '8px', gap: '8px' }}>
+                      <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', marginBottom: '6px', gap: '8px' }}>
                         <span style={{ fontSize: '13px', fontWeight: '600', color: 'var(--text-primary)' }}>{t.title}</span>
-                        {onDeleteTask && (
+                        <div style={{ display: 'flex', gap: '4px' }}>
                           <button
-                            onClick={() => onDeleteTask(t.id)}
-                            title="Delete task"
+                            onClick={(e) => { e.stopPropagation(); openEditModal(t); }}
+                            title="Edit task"
                             style={{ background: 'transparent', border: 'none', color: 'var(--text-muted)', cursor: 'pointer', padding: '2px' }}
                           >
-                            <Trash2 size={13} />
+                            <Edit3 size={13} />
                           </button>
-                        )}
+                          {onDeleteTask && (
+                            <button
+                              onClick={(e) => { e.stopPropagation(); onDeleteTask(t.id); }}
+                              title="Delete task"
+                              style={{ background: 'transparent', border: 'none', color: 'var(--text-muted)', cursor: 'pointer', padding: '2px' }}
+                            >
+                              <Trash2 size={13} />
+                            </button>
+                          )}
+                        </div>
                       </div>
 
-                      <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginTop: '10px', flexWrap: 'wrap', gap: '6px' }}>
+                      {t.description && (
+                        <p style={{ fontSize: '11.5px', color: 'var(--text-secondary)', marginBottom: '8px', overflow: 'hidden', textOverflow: 'ellipsis', display: '-webkit-box', WebkitLineClamp: 2, WebkitBoxOrient: 'vertical' }}>
+                          {t.description}
+                        </p>
+                      )}
+
+                      {/* Target Project/Area badge */}
+                      {t.target_name && (
+                        <div style={{ fontSize: '10.5px', fontWeight: '600', color: 'var(--accent-primary)', marginBottom: '8px', display: 'flex', alignItems: 'center', gap: '4px' }}>
+                          <Target size={11} /> {t.para_category === 'Project' ? `Project: ${t.target_name}` : `Area: ${t.target_name}`}
+                        </div>
+                      )}
+
+                      <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginTop: '6px', flexWrap: 'wrap', gap: '6px' }}>
                         <span className={`badge-para badge-${t.para_category ? t.para_category.toLowerCase() : 'project'}`}>
                           {t.para_category || 'Project'}
                         </span>
@@ -451,7 +591,7 @@ export default function TasksView({
                       {/* Quick Move Button Row */}
                       <div style={{ display: 'flex', justifyContent: 'flex-end', marginTop: '10px', gap: '6px' }}>
                         <button
-                          onClick={() => onUpdateTask && onUpdateTask(t.id, { status: 'in_progress' })}
+                          onClick={(e) => { e.stopPropagation(); onUpdateTask && onUpdateTask(t.id, { status: 'in_progress' }); }}
                           style={{ fontSize: '11px', padding: '3px 8px', borderRadius: '4px', border: '1px solid var(--border-subtle)', background: 'var(--bg-card)', color: 'var(--accent-primary)', cursor: 'pointer', display: 'flex', alignItems: 'center', gap: '4px' }}
                         >
                           Start <ArrowRight size={10} />
@@ -490,28 +630,51 @@ export default function TasksView({
                       key={t.id}
                       draggable
                       onDragStart={(e) => handleDragStart(e, t.id)}
+                      onClick={() => openEditModal(t)}
                       style={{
                         background: 'var(--bg-surface)',
                         padding: '12px',
                         borderRadius: 'var(--radius-md)',
                         border: '1px solid var(--accent-primary)',
-                        cursor: 'grab'
+                        cursor: 'pointer'
                       }}
                     >
-                      <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', marginBottom: '8px', gap: '8px' }}>
+                      <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', marginBottom: '6px', gap: '8px' }}>
                         <span style={{ fontSize: '13px', fontWeight: '600', color: 'var(--text-primary)' }}>{t.title}</span>
-                        {onDeleteTask && (
+                        <div style={{ display: 'flex', gap: '4px' }}>
                           <button
-                            onClick={() => onDeleteTask(t.id)}
-                            title="Delete task"
+                            onClick={(e) => { e.stopPropagation(); openEditModal(t); }}
+                            title="Edit task"
                             style={{ background: 'transparent', border: 'none', color: 'var(--text-muted)', cursor: 'pointer', padding: '2px' }}
                           >
-                            <Trash2 size={13} />
+                            <Edit3 size={13} />
                           </button>
-                        )}
+                          {onDeleteTask && (
+                            <button
+                              onClick={(e) => { e.stopPropagation(); onDeleteTask(t.id); }}
+                              title="Delete task"
+                              style={{ background: 'transparent', border: 'none', color: 'var(--text-muted)', cursor: 'pointer', padding: '2px' }}
+                            >
+                              <Trash2 size={13} />
+                            </button>
+                          )}
+                        </div>
                       </div>
 
-                      <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginTop: '10px', flexWrap: 'wrap', gap: '6px' }}>
+                      {t.description && (
+                        <p style={{ fontSize: '11.5px', color: 'var(--text-secondary)', marginBottom: '8px', overflow: 'hidden', textOverflow: 'ellipsis', display: '-webkit-box', WebkitLineClamp: 2, WebkitBoxOrient: 'vertical' }}>
+                          {t.description}
+                        </p>
+                      )}
+
+                      {/* Target Project/Area badge */}
+                      {t.target_name && (
+                        <div style={{ fontSize: '10.5px', fontWeight: '600', color: 'var(--accent-primary)', marginBottom: '8px', display: 'flex', alignItems: 'center', gap: '4px' }}>
+                          <Target size={11} /> {t.para_category === 'Project' ? `Project: ${t.target_name}` : `Area: ${t.target_name}`}
+                        </div>
+                      )}
+
+                      <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginTop: '6px', flexWrap: 'wrap', gap: '6px' }}>
                         <span className={`badge-para badge-${t.para_category ? t.para_category.toLowerCase() : 'project'}`}>
                           {t.para_category || 'Project'}
                         </span>
@@ -523,13 +686,13 @@ export default function TasksView({
                       {/* Quick Move Action Buttons */}
                       <div style={{ display: 'flex', justifyContent: 'space-between', marginTop: '10px', gap: '6px' }}>
                         <button
-                          onClick={() => onUpdateTask && onUpdateTask(t.id, { status: 'todo' })}
+                          onClick={(e) => { e.stopPropagation(); onUpdateTask && onUpdateTask(t.id, { status: 'todo' }); }}
                           style={{ fontSize: '11px', padding: '3px 8px', borderRadius: '4px', border: '1px solid var(--border-subtle)', background: 'var(--bg-card)', color: 'var(--text-secondary)', cursor: 'pointer', display: 'flex', alignItems: 'center', gap: '4px' }}
                         >
                           <ArrowLeft size={10} /> To Do
                         </button>
                         <button
-                          onClick={() => onUpdateTask && onUpdateTask(t.id, { status: 'completed' })}
+                          onClick={(e) => { e.stopPropagation(); onUpdateTask && onUpdateTask(t.id, { status: 'completed' }); }}
                           style={{ fontSize: '11px', padding: '3px 8px', borderRadius: '4px', border: 'none', background: 'var(--accent-success)', color: 'white', fontWeight: '600', cursor: 'pointer', display: 'flex', alignItems: 'center', gap: '4px' }}
                         >
                           Complete <CheckCircle2 size={10} />
@@ -566,28 +729,38 @@ export default function TasksView({
                     key={t.id}
                     draggable
                     onDragStart={(e) => handleDragStart(e, t.id)}
+                    onClick={() => openEditModal(t)}
                     style={{
                       background: 'var(--bg-surface)',
                       padding: '12px',
                       borderRadius: 'var(--radius-md)',
                       border: '1px solid var(--border-subtle)',
                       opacity: 0.8,
-                      cursor: 'grab'
+                      cursor: 'pointer'
                     }}
                   >
-                    <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', marginBottom: '8px', gap: '8px' }}>
+                    <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', marginBottom: '6px', gap: '8px' }}>
                       <span style={{ fontSize: '13px', fontWeight: '600', textDecoration: 'line-through', color: 'var(--text-muted)' }}>
                         {t.title}
                       </span>
-                      {onDeleteTask && (
+                      <div style={{ display: 'flex', gap: '4px' }}>
                         <button
-                          onClick={() => onDeleteTask(t.id)}
-                          title="Delete task"
+                          onClick={(e) => { e.stopPropagation(); openEditModal(t); }}
+                          title="Edit task"
                           style={{ background: 'transparent', border: 'none', color: 'var(--text-muted)', cursor: 'pointer', padding: '2px' }}
                         >
-                          <Trash2 size={13} />
+                          <Edit3 size={13} />
                         </button>
-                      )}
+                        {onDeleteTask && (
+                          <button
+                            onClick={(e) => { e.stopPropagation(); onDeleteTask(t.id); }}
+                            title="Delete task"
+                            style={{ background: 'transparent', border: 'none', color: 'var(--text-muted)', cursor: 'pointer', padding: '2px' }}
+                          >
+                            <Trash2 size={13} />
+                          </button>
+                        )}
+                      </div>
                     </div>
 
                     <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginTop: '10px' }}>
@@ -595,7 +768,7 @@ export default function TasksView({
                         {t.para_category || 'Project'}
                       </span>
                       <button
-                        onClick={() => onUpdateTask && onUpdateTask(t.id, { status: 'in_progress' })}
+                        onClick={(e) => { e.stopPropagation(); onUpdateTask && onUpdateTask(t.id, { status: 'in_progress' }); }}
                         style={{ fontSize: '11px', padding: '3px 8px', borderRadius: '4px', border: '1px solid var(--border-subtle)', background: 'var(--bg-card)', color: 'var(--text-secondary)', cursor: 'pointer', display: 'flex', alignItems: 'center', gap: '4px' }}
                       >
                         <ArrowLeft size={10} /> Reopen
@@ -624,18 +797,26 @@ export default function TasksView({
                   <div
                     key={t.id}
                     className={`task-item ${t.status === 'completed' ? 'completed' : ''}`}
-                    style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', padding: '12px', borderRadius: 'var(--radius-md)', background: 'var(--bg-surface)', border: '1px solid var(--border-subtle)' }}
+                    onClick={() => openEditModal(t)}
+                    style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', padding: '12px', borderRadius: 'var(--radius-md)', background: 'var(--bg-surface)', border: '1px solid var(--border-subtle)', cursor: 'pointer' }}
                   >
                     <div style={{ display: 'flex', alignItems: 'center', gap: '12px' }}>
                       <input
                         type="checkbox"
                         checked={t.status === 'completed'}
-                        onChange={(e) => onUpdateTask && onUpdateTask(t.id, { status: e.target.checked ? 'completed' : 'todo' })}
+                        onChange={(e) => { e.stopPropagation(); onUpdateTask && onUpdateTask(t.id, { status: e.target.checked ? 'completed' : 'todo' }); }}
                         style={{ accentColor: 'var(--accent-primary)', width: '16px', height: '16px', cursor: 'pointer' }}
                       />
-                      <span style={{ fontSize: '14px', fontWeight: '500', textDecoration: t.status === 'completed' ? 'line-through' : 'none' }}>
-                        {t.title}
-                      </span>
+                      <div>
+                        <div style={{ fontSize: '14px', fontWeight: '500', textDecoration: t.status === 'completed' ? 'line-through' : 'none' }}>
+                          {t.title}
+                        </div>
+                        {t.target_name && (
+                          <div style={{ fontSize: '11px', color: 'var(--accent-primary)', fontWeight: '600', marginTop: '2px' }}>
+                            {t.para_category === 'Project' ? `Project: ${t.target_name}` : `Area: ${t.target_name}`}
+                          </div>
+                        )}
+                      </div>
                     </div>
 
                     <div style={{ display: 'flex', gap: '10px', alignItems: 'center' }}>
@@ -650,9 +831,15 @@ export default function TasksView({
                           <Clock size={11} /> {t.due_date}
                         </span>
                       )}
+                      <button
+                        onClick={(e) => { e.stopPropagation(); openEditModal(t); }}
+                        style={{ background: 'transparent', border: 'none', color: 'var(--text-muted)', cursor: 'pointer', padding: '4px' }}
+                      >
+                        <Edit3 size={14} />
+                      </button>
                       {onDeleteTask && (
                         <button
-                          onClick={() => onDeleteTask(t.id)}
+                          onClick={(e) => { e.stopPropagation(); onDeleteTask(t.id); }}
                           style={{ background: 'transparent', border: 'none', color: 'var(--text-muted)', cursor: 'pointer', padding: '4px' }}
                         >
                           <Trash2 size={14} />
@@ -724,6 +911,173 @@ export default function TasksView({
               </div>
             ))
           )}
+        </div>
+      )}
+
+      {/* POP-UP EDIT TASK MODAL */}
+      {editingTask && (
+        <div style={{ position: 'fixed', inset: 0, background: 'rgba(0,0,0,0.5)', backdropFilter: 'blur(4px)', display: 'flex', alignItems: 'center', justifyContent: 'center', zIndex: 1000 }}>
+          <div className="card" style={{ width: '540px', background: 'var(--bg-surface)', padding: '24px', borderRadius: 'var(--radius-lg)' }}>
+            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '16px' }}>
+              <h3 style={{ fontWeight: '700', fontSize: '16px', display: 'flex', alignItems: 'center', gap: '6px' }}>
+                <Edit3 size={16} color="var(--accent-primary)" /> Edit Task Details
+              </h3>
+              <button onClick={() => setEditingTask(null)} style={{ background: 'transparent', border: 'none', cursor: 'pointer', color: 'var(--text-muted)' }}>
+                <X size={18} />
+              </button>
+            </div>
+
+            <form onSubmit={handleSaveTaskEdit} style={{ display: 'flex', flexDirection: 'column', gap: '14px' }}>
+              <div>
+                <label style={{ fontSize: '11px', fontWeight: '600', color: 'var(--text-secondary)', display: 'block', marginBottom: '4px' }}>Task Title</label>
+                <input
+                  type="text"
+                  value={editTitle}
+                  onChange={(e) => setEditTitle(e.target.value)}
+                  required
+                  style={{ width: '100%', padding: '10px 12px', borderRadius: 'var(--radius-md)', border: '1px solid var(--border-subtle)', background: 'var(--bg-card)', color: 'var(--text-primary)', outline: 'none', fontWeight: '600' }}
+                />
+              </div>
+
+              <div>
+                <label style={{ fontSize: '11px', fontWeight: '600', color: 'var(--text-secondary)', display: 'block', marginBottom: '4px' }}>Task Description & Notes</label>
+                <textarea
+                  rows={4}
+                  placeholder="Detailed task description, acceptance criteria, or notes..."
+                  value={editDesc}
+                  onChange={(e) => setEditDesc(e.target.value)}
+                  style={{ width: '100%', padding: '10px 12px', borderRadius: 'var(--radius-md)', border: '1px solid var(--border-subtle)', background: 'var(--bg-card)', color: 'var(--text-primary)', outline: 'none', resize: 'vertical', fontSize: '13px', lineHeight: '1.5' }}
+                />
+              </div>
+
+              <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '12px' }}>
+                <div>
+                  <label style={{ fontSize: '11px', fontWeight: '600', color: 'var(--text-secondary)', display: 'block', marginBottom: '4px' }}>Status</label>
+                  <select
+                    value={editStatus}
+                    onChange={(e) => setEditStatus(e.target.value)}
+                    style={{ width: '100%', padding: '8px', borderRadius: 'var(--radius-md)', border: '1px solid var(--border-subtle)', background: 'var(--bg-card)', color: 'var(--text-primary)' }}
+                  >
+                    <option value="todo">To Do</option>
+                    <option value="in_progress">In Progress</option>
+                    <option value="completed">Completed</option>
+                  </select>
+                </div>
+
+                <div>
+                  <label style={{ fontSize: '11px', fontWeight: '600', color: 'var(--text-secondary)', display: 'block', marginBottom: '4px' }}>Priority</label>
+                  <select
+                    value={editPriority}
+                    onChange={(e) => setEditPriority(e.target.value)}
+                    style={{ width: '100%', padding: '8px', borderRadius: 'var(--radius-md)', border: '1px solid var(--border-subtle)', background: 'var(--bg-card)', color: 'var(--text-primary)' }}
+                  >
+                    <option value="low">Low</option>
+                    <option value="medium">Medium</option>
+                    <option value="high">High</option>
+                    <option value="urgent">Urgent</option>
+                  </select>
+                </div>
+              </div>
+
+              <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '12px' }}>
+                <div>
+                  <label style={{ fontSize: '11px', fontWeight: '600', color: 'var(--text-secondary)', display: 'block', marginBottom: '4px' }}>PARA Category</label>
+                  <select
+                    value={editCategory}
+                    onChange={(e) => {
+                      setEditCategory(e.target.value);
+                      setEditTargetName('');
+                    }}
+                    style={{ width: '100%', padding: '8px', borderRadius: 'var(--radius-md)', border: '1px solid var(--border-subtle)', background: 'var(--bg-card)', color: 'var(--text-primary)' }}
+                  >
+                    <option value="Project">Project</option>
+                    <option value="Area">Area</option>
+                    <option value="Resource">Resource</option>
+                    <option value="Archive">Archive</option>
+                  </select>
+                </div>
+
+                {/* Dynamic Project or Area Selector in Pop-up */}
+                <div>
+                  <label style={{ fontSize: '11px', fontWeight: '600', color: 'var(--text-secondary)', display: 'block', marginBottom: '4px' }}>
+                    {editCategory === 'Project' ? 'Linked Project' : editCategory === 'Area' ? 'Linked Area' : 'Target Label'}
+                  </label>
+                  {editCategory === 'Project' ? (
+                    <select
+                      value={editTargetName}
+                      onChange={(e) => setEditTargetName(e.target.value)}
+                      style={{ width: '100%', padding: '8px', borderRadius: 'var(--radius-md)', border: '1px solid var(--border-subtle)', background: 'var(--bg-card)', color: 'var(--text-primary)' }}
+                    >
+                      <option value="">Select Project...</option>
+                      {projects.map(p => (
+                        <option key={p.id} value={p.title}>{p.title}</option>
+                      ))}
+                    </select>
+                  ) : editCategory === 'Area' ? (
+                    <select
+                      value={editTargetName}
+                      onChange={(e) => setEditTargetName(e.target.value)}
+                      style={{ width: '100%', padding: '8px', borderRadius: 'var(--radius-md)', border: '1px solid var(--border-subtle)', background: 'var(--bg-card)', color: 'var(--text-primary)' }}
+                    >
+                      <option value="">Select Area...</option>
+                      {standardAreas.map(area => (
+                        <option key={area} value={area}>{area}</option>
+                      ))}
+                    </select>
+                  ) : (
+                    <input
+                      type="text"
+                      placeholder="Custom label..."
+                      value={editTargetName}
+                      onChange={(e) => setEditTargetName(e.target.value)}
+                      style={{ width: '100%', padding: '8px', borderRadius: 'var(--radius-md)', border: '1px solid var(--border-subtle)', background: 'var(--bg-card)', color: 'var(--text-primary)' }}
+                    />
+                  )}
+                </div>
+              </div>
+
+              <div>
+                <label style={{ fontSize: '11px', fontWeight: '600', color: 'var(--text-secondary)', display: 'block', marginBottom: '4px' }}>Due Date</label>
+                <input
+                  type="date"
+                  value={editDueDate}
+                  onChange={(e) => setEditDueDate(e.target.value)}
+                  style={{ width: '100%', padding: '8px', borderRadius: 'var(--radius-md)', border: '1px solid var(--border-subtle)', background: 'var(--bg-card)', color: 'var(--text-primary)' }}
+                />
+              </div>
+
+              <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginTop: '10px', borderTop: '1px solid var(--border-subtle)', paddingTop: '14px' }}>
+                {onDeleteTask ? (
+                  <button
+                    type="button"
+                    onClick={() => {
+                      onDeleteTask(editingTask.id);
+                      setEditingTask(null);
+                    }}
+                    style={{ padding: '8px 12px', borderRadius: 'var(--radius-md)', background: 'rgba(239,68,68,0.1)', color: '#ef4444', border: '1px solid rgba(239,68,68,0.3)', cursor: 'pointer', fontWeight: '600', fontSize: '12px', display: 'flex', alignItems: 'center', gap: '4px' }}
+                  >
+                    <Trash2 size={13} /> Delete Task
+                  </button>
+                ) : <div />}
+
+                <div style={{ display: 'flex', gap: '8px' }}>
+                  <button
+                    type="button"
+                    onClick={() => setEditingTask(null)}
+                    style={{ padding: '8px 14px', borderRadius: 'var(--radius-md)', border: '1px solid var(--border-subtle)', background: 'transparent', cursor: 'pointer' }}
+                  >
+                    Cancel
+                  </button>
+                  <button
+                    type="submit"
+                    style={{ padding: '8px 18px', borderRadius: 'var(--radius-md)', background: 'var(--accent-primary)', color: 'white', border: 'none', fontWeight: '600', cursor: 'pointer', display: 'flex', alignItems: 'center', gap: '4px' }}
+                  >
+                    <Check size={14} /> Save Changes
+                  </button>
+                </div>
+              </div>
+            </form>
+          </div>
         </div>
       )}
     </div>

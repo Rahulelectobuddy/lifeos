@@ -254,6 +254,7 @@ async def create_task(task_in: schemas.TaskCreate, db: AsyncSession = Depends(ge
         status=task_in.status,
         priority=task_in.priority,
         para_category=task_in.para_category,
+        target_name=task_in.target_name,
         due_date=task_in.due_date
     )
     db.add(task)
