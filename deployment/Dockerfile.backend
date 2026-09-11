@@ -1,0 +1,32 @@
+# ============================================================================
+# LIFE OS BACKEND DOCKERFILE (FASTAPI + PYTHON 3.12)
+# ============================================================================
+FROM python:3.12-slim
+
+# Prevent Python from writing .pyc files and enable unbuffered logging
+ENV PYTHONDONTWRITEBYTECODE=1
+ENV PYTHONUNBUFFERED=1
+
+WORKDIR /app
+
+# Install system dependencies required for building C extensions / libpq
+RUN apt-get update && apt-get install -y --no-install-recommends \
+    curl \
+    gcc \
+    libpq-dev \
+    && rm -rf /var/lib/apt/lists/*
+
+# Copy backend dependencies manifest
+COPY backend/requirements.txt /app/requirements.txt
+
+# Install Python dependencies
+RUN pip install --no-cache-dir --upgrade -r /app/requirements.txt
+
+# Copy backend application source code
+COPY backend /app
+
+# Expose FastAPI application port
+EXPOSE 8000
+
+# Run Uvicorn server
+CMD ["python", "-m", "uvicorn", "app.main:app", "--host", "0.0.0.0", "--port", "8000"]

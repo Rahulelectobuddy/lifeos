@@ -1,0 +1,60 @@
+# ============================================================================
+# LIFE OS GITIGNORE FILE
+# ============================================================================
+
+# Environment & Secrets
+.env
+.env.*
+!.env.example
+*.pem
+*.key
+
+# Operating System Files
+.DS_Store
+.DS_Store?
+._*
+.Spotlight-V100
+.Trashes
+ehthumbs.db
+Thumbs.db
+
+# IDE & Editor Directories
+.idea/
+.vscode/
+*.swp
+*.swo
+
+# Python / Backend Exclusions
+__pycache__/
+*.py[cod]
+*$py.class
+.pytest_cache/
+.coverage
+htmlcov/
+.venv/
+venv/
+env/
+ENV/
+*.log
+
+# Local SQLite Databases
+*.db
+*.sqlite
+*.sqlite3
+backend/lifeos.db
+lifeos.db
+
+# Node / Frontend Exclusions
+node_modules/
+frontend/node_modules/
+frontend/dist/
+frontend/build/
+.vite/
+frontend/.vite/
+npm-debug.log*
+yarn-debug.log*
+yarn-error.log*
+
+# Docker Persistent Volume Data
+postgres_data/
+redis_data/

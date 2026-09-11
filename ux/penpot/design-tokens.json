@@ -1,0 +1,33 @@
+{
+  "name": "Cypher LifeOS Design Tokens",
+  "version": "1.0.0",
+  "theme": "Light Mode First Default",
+  "colors": {
+    "bgBase": "hsl(220, 20%, 97%)",
+    "bgSurface": "hsl(0, 0%, 100%)",
+    "bgCard": "hsl(220, 20%, 99%)",
+    "bgHover": "hsl(220, 15%, 93%)",
+    "accentPrimary": "hsl(248, 85%, 58%)",
+    "accentSecondary": "hsl(190, 90%, 42%)",
+    "accentSuccess": "hsl(150, 75%, 38%)",
+    "accentWarning": "hsl(38, 90%, 48%)",
+    "accentDanger": "hsl(355, 80%, 52%)",
+    "paraProject": "hsl(210, 85%, 45%)",
+    "paraArea": "hsl(140, 70%, 35%)",
+    "paraResource": "hsl(280, 75%, 45%)",
+    "paraArchive": "hsl(210, 15%, 45%)"
+  },
+  "typography": {
+    "fontSans": "Inter, sans-serif",
+    "fontHeader": "Outfit, sans-serif",
+    "fontMono": "JetBrains Mono, monospace"
+  },
+  "boards": [
+    "Web - Home Dashboard & Command Center",
+    "Web - Second Brain Note Workspace",
+    "Web - Tasks & Project Management",
+    "Web - Daily Journal & Habit Tracker",
+    "Web - Interactive Knowledge Graph Explorer",
+    "Web - Universal Command Palette Modal (⌘K)"
+  ]
+}
