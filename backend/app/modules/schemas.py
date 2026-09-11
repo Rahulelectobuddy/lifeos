@@ -21,6 +21,8 @@ class NoteBase(BaseModel):
     title: str
     content: str = ""
     para_category: str = "Resource"
+    folder_path: Optional[str] = "General"
+    parent_id: Optional[str] = None
     tags: Optional[str] = ""
     is_pinned: bool = False
 
@@ -93,6 +95,8 @@ class NoteUpdate(BaseModel):
     title: Optional[str] = None
     content: Optional[str] = None
     para_category: Optional[str] = None
+    folder_path: Optional[str] = None
+    parent_id: Optional[str] = None
     tags: Optional[str] = None
     is_pinned: Optional[bool] = None
 
@@ -103,6 +107,13 @@ class TaskUpdate(BaseModel):
     priority: Optional[str] = None
     para_category: Optional[str] = None
     due_date: Optional[str] = None
+
+class ProjectUpdate(BaseModel):
+    title: Optional[str] = None
+    description: Optional[str] = None
+    progress: Optional[int] = None
+    target_date: Optional[str] = None
+    status: Optional[str] = None
 
 # Habit Schemas
 class HabitBase(BaseModel):
@@ -136,3 +147,14 @@ class EntityLinkOut(EntityLinkBase):
     workspace_id: str
     created_at: datetime
     model_config = ConfigDict(from_attributes=True)
+
+
+# Auth Schemas
+class LoginRequest(BaseModel):
+    username: str
+    password: str
+
+class TokenResponse(BaseModel):
+    access_token: str
+    token_type: str = "bearer"
+    user: dict

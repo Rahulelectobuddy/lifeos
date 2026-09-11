@@ -1,7 +1,7 @@
 import React from 'react';
 import { Layers, CheckCircle2, BookOpen, Clock, ArrowRight, Zap, Target } from 'lucide-react';
 
-export default function HomeView({ notes, tasks, projects, onNavigate }) {
+export default function HomeView({ notes, tasks, projects, onNavigate, onUpdateTask }) {
   return (
     <div style={{ display: 'flex', flexDirection: 'column', gap: '24px' }}>
       {/* Top Hero Command Header */}
@@ -103,10 +103,19 @@ export default function HomeView({ notes, tasks, projects, onNavigate }) {
             {tasks.slice(0, 4).map((t) => (
               <div key={t.id} className={`task-item ${t.status === 'completed' ? 'completed' : ''}`}>
                 <div style={{ display: 'flex', alignItems: 'center', gap: '10px' }}>
-                  <input type="checkbox" checked={t.status === 'completed'} readOnly style={{ accentColor: 'var(--accent-primary)', width: '16px', height: '16px' }} />
+                  <input
+                    type="checkbox"
+                    checked={t.status === 'completed'}
+                    onChange={(e) => {
+                      if (onUpdateTask) {
+                        onUpdateTask(t.id, { status: e.target.checked ? 'completed' : 'todo' });
+                      }
+                    }}
+                    style={{ accentColor: 'var(--accent-primary)', width: '16px', height: '16px', cursor: 'pointer' }}
+                  />
                   <span style={{ fontSize: '13px', fontWeight: '500' }}>{t.title}</span>
                 </div>
-                <span className={`badge-para badge-${t.para_category.toLowerCase()}`}>{t.priority}</span>
+                <span className={`badge-para badge-${t.para_category ? t.para_category.toLowerCase() : 'project'}`}>{t.priority}</span>
               </div>
             ))}
           </div>

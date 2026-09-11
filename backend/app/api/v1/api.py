@@ -6,11 +6,44 @@ from typing import List
 from app.core.database import get_db
 from app.modules.models import Note, Task, Project, DailyJournal, Habit, EntityLink, Workspace
 from app.modules import schemas
+from app.core.security import create_access_token, verify_access_token, STATIC_USER
 
 api_router = APIRouter()
 
 # DEFAULT WORKSPACE ID
 DEFAULT_WS_ID = "default_ws"
+
+
+# ============================================================================
+# AUTHENTICATION ENDPOINTS
+# ============================================================================
+@api_router.post("/auth/login", response_model=schemas.TokenResponse)
+async def login(credentials: schemas.LoginRequest):
+    if credentials.username == STATIC_USER["username"] and credentials.password == STATIC_USER["password"]:
+        token = create_access_token({"sub": STATIC_USER["username"], "email": STATIC_USER["email"]})
+        user_info = {
+            "username": STATIC_USER["username"],
+            "name": STATIC_USER["name"],
+            "email": STATIC_USER["email"],
+            "role": STATIC_USER["role"]
+        }
+        return {"access_token": token, "token_type": "bearer", "user": user_info}
+    raise HTTPException(
+        status_code=status.HTTP_401_UNAUTHORIZED,
+        detail="Invalid username or password"
+    )
+
+@api_router.get("/auth/me")
+async def get_current_user(token: str):
+    payload = verify_access_token(token)
+    if not payload:
+        raise HTTPException(status_code=status.HTTP_401_UNAUTHORIZED, detail="Invalid or expired token")
+    return {
+        "username": STATIC_USER["username"],
+        "name": STATIC_USER["name"],
+        "email": STATIC_USER["email"],
+        "role": STATIC_USER["role"]
+    }
 
 
 async def ensure_default_workspace(db: AsyncSession):
@@ -160,6 +193,8 @@ async def create_note(note_in: schemas.NoteCreate, db: AsyncSession = Depends(ge
         title=note_in.title,
         content=note_in.content,
         para_category=note_in.para_category,
+        folder_path=note_in.folder_path or "General",
+        parent_id=note_in.parent_id,
         tags=note_in.tags,
         is_pinned=note_in.is_pinned
     )
@@ -184,6 +219,19 @@ async def update_note(note_id: str, note_update: schemas.NoteUpdate, db: AsyncSe
     await db.commit()
     await db.refresh(note)
     return note
+
+@api_router.delete("/notes/{note_id}")
+async def delete_note(note_id: str, db: AsyncSession = Depends(get_db)):
+    await ensure_default_workspace(db)
+    stmt = select(Note).where(Note.id == note_id).where(Note.workspace_id == DEFAULT_WS_ID)
+    res = await db.execute(stmt)
+    note = res.scalar_one_or_none()
+    if not note:
+        raise HTTPException(status_code=404, detail="Note not found")
+    
+    await db.delete(note)
+    await db.commit()
+    return {"status": "success", "message": f"Note {note_id} deleted"}
 
 
 # ============================================================================
@@ -230,6 +278,19 @@ async def update_task(task_id: str, task_update: schemas.TaskUpdate, db: AsyncSe
     await db.refresh(task)
     return task
 
+@api_router.delete("/tasks/{task_id}")
+async def delete_task(task_id: str, db: AsyncSession = Depends(get_db)):
+    await ensure_default_workspace(db)
+    stmt = select(Task).where(Task.id == task_id).where(Task.workspace_id == DEFAULT_WS_ID)
+    res = await db.execute(stmt)
+    task = res.scalar_one_or_none()
+    if not task:
+        raise HTTPException(status_code=404, detail="Task not found")
+    
+    await db.delete(task)
+    await db.commit()
+    return {"status": "success", "message": f"Task {task_id} deleted"}
+
 @api_router.get("/projects", response_model=List[schemas.ProjectOut])
 async def list_projects(db: AsyncSession = Depends(get_db)):
     await ensure_default_workspace(db)
@@ -252,6 +313,36 @@ async def create_project(project_in: schemas.ProjectCreate, db: AsyncSession = D
     await db.commit()
     await db.refresh(project)
     return project
+
+@api_router.patch("/projects/{project_id}", response_model=schemas.ProjectOut)
+async def update_project(project_id: str, project_update: schemas.ProjectUpdate, db: AsyncSession = Depends(get_db)):
+    await ensure_default_workspace(db)
+    stmt = select(Project).where(Project.id == project_id).where(Project.workspace_id == DEFAULT_WS_ID)
+    res = await db.execute(stmt)
+    project = res.scalar_one_or_none()
+    if not project:
+        raise HTTPException(status_code=404, detail="Project not found")
+    
+    update_data = project_update.model_dump(exclude_unset=True)
+    for field, val in update_data.items():
+        setattr(project, field, val)
+    
+    await db.commit()
+    await db.refresh(project)
+    return project
+
+@api_router.delete("/projects/{project_id}")
+async def delete_project(project_id: str, db: AsyncSession = Depends(get_db)):
+    await ensure_default_workspace(db)
+    stmt = select(Project).where(Project.id == project_id).where(Project.workspace_id == DEFAULT_WS_ID)
+    res = await db.execute(stmt)
+    project = res.scalar_one_or_none()
+    if not project:
+        raise HTTPException(status_code=404, detail="Project not found")
+    
+    await db.delete(project)
+    await db.commit()
+    return {"status": "success", "message": f"Project {project_id} deleted"}
 
 
 # ============================================================================
@@ -301,9 +392,32 @@ async def toggle_habit(habit_id: str, db: AsyncSession = Depends(get_db)):
     else:
         habit.streak_count = max(0, habit.streak_count - 1)
         
+@api_router.post("/habits", response_model=schemas.HabitOut, status_code=status.HTTP_201_CREATED)
+async def create_habit(habit_in: schemas.HabitCreate, db: AsyncSession = Depends(get_db)):
+    await ensure_default_workspace(db)
+    habit = Habit(
+        workspace_id=DEFAULT_WS_ID,
+        name=habit_in.name,
+        streak_count=habit_in.streak_count,
+        is_completed_today=habit_in.is_completed_today
+    )
+    db.add(habit)
     await db.commit()
     await db.refresh(habit)
     return habit
+
+@api_router.delete("/habits/{habit_id}")
+async def delete_habit(habit_id: str, db: AsyncSession = Depends(get_db)):
+    await ensure_default_workspace(db)
+    stmt = select(Habit).where(Habit.id == habit_id).where(Habit.workspace_id == DEFAULT_WS_ID)
+    res = await db.execute(stmt)
+    habit = res.scalar_one_or_none()
+    if not habit:
+        raise HTTPException(status_code=404, detail="Habit not found")
+    
+    await db.delete(habit)
+    await db.commit()
+    return {"status": "success", "message": f"Habit {habit_id} deleted"}
 
 
 # ============================================================================

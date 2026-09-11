@@ -8,12 +8,33 @@ import NotesView from './views/NotesView';
 import TasksView from './views/TasksView';
 import JournalView from './views/JournalView';
 import GraphView from './views/GraphView';
+import LoginView from './views/LoginView';
 import CommandPaletteModal from './components/CommandPaletteModal';
 
 export default function App() {
+  const [authToken, setAuthToken] = useState(() => localStorage.getItem('lifeos_jwt_token') || null);
+  const [authUser, setAuthUser] = useState(() => {
+    const saved = localStorage.getItem('lifeos_user');
+    return saved ? JSON.parse(saved) : null;
+  });
+
   const [currentView, setCurrentView] = useState('home'); // home, notes, tasks, journal, graph
   const [isDark, setIsDark] = useState(false);
   const [isCmdOpen, setIsCmdOpen] = useState(false);
+
+  const handleLoginSuccess = (token, user) => {
+    setAuthToken(token);
+    setAuthUser(user);
+    localStorage.setItem('lifeos_jwt_token', token);
+    localStorage.setItem('lifeos_user', JSON.stringify(user));
+  };
+
+  const handleLogout = () => {
+    setAuthToken(null);
+    setAuthUser(null);
+    localStorage.removeItem('lifeos_jwt_token');
+    localStorage.removeItem('lifeos_user');
+  };
 
   // State data
   const [notes, setNotes] = useState([
@@ -64,6 +85,8 @@ export default function App() {
     { id: 'hbt-4', name: 'Read 20 Pages of Technical Literature', streak_count: 12, is_completed_today: true },
   ]);
 
+  const [journals, setJournals] = useState([]);
+
   // Fetch initial seed data from backend API if available
   useEffect(() => {
     fetch('/api/v1/notes')
@@ -85,6 +108,11 @@ export default function App() {
       .then(res => res.ok ? res.json() : [])
       .then(data => { if (Array.isArray(data) && data.length > 0) setHabits(data); })
       .catch(() => {});
+
+    fetch('/api/v1/journal')
+      .then(res => res.ok ? res.json() : [])
+      .then(data => { if (Array.isArray(data) && data.length > 0) setJournals(data); })
+      .catch(() => {});
   }, []);
 
   const toggleTheme = () => {
@@ -93,16 +121,215 @@ export default function App() {
     document.documentElement.setAttribute('data-theme', nextDark ? 'dark' : 'light');
   };
 
-  const handleAddTask = (newTask) => {
-    const taskObj = {
-      id: `tsk-${Date.now()}`,
-      ...newTask
-    };
-    setTasks([taskObj, ...tasks]);
+  // Notes CRUD
+  const handleAddNote = async (newNote) => {
+    const tempId = `nt-${Date.now()}`;
+    const tempObj = { id: tempId, ...newNote };
+    setNotes(prev => [tempObj, ...prev]);
+
+    try {
+      const res = await fetch('/api/v1/notes', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(newNote)
+      });
+      if (res.ok) {
+        const savedNote = await res.json();
+        setNotes(prev => prev.map(n => n.id === tempId ? savedNote : n));
+      }
+    } catch (e) {
+      console.error('Failed to save note:', e);
+    }
   };
 
-  const handleToggleHabit = (id) => {
-    setHabits(habits.map(h => h.id === id ? { ...h, is_completed_today: !h.is_completed_today } : h));
+  const handleUpdateNote = async (noteId, updates) => {
+    setNotes(prev => prev.map(n => n.id === noteId ? { ...n, ...updates } : n));
+
+    try {
+      await fetch(`/api/v1/notes/${noteId}`, {
+        method: 'PATCH',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(updates)
+      });
+    } catch (e) {
+      console.error('Failed to update note:', e);
+    }
+  };
+
+  const handleDeleteNote = async (noteId) => {
+    setNotes(prev => prev.filter(n => n.id !== noteId));
+
+    try {
+      await fetch(`/api/v1/notes/${noteId}`, { method: 'DELETE' });
+    } catch (e) {
+      console.error('Failed to delete note:', e);
+    }
+  };
+
+  // Tasks CRUD
+  const handleAddTask = async (newTask) => {
+    const tempId = `tsk-${Date.now()}`;
+    const tempTask = { id: tempId, ...newTask };
+    setTasks(prev => [tempTask, ...prev]);
+
+    try {
+      const res = await fetch('/api/v1/tasks', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(newTask)
+      });
+      if (res.ok) {
+        const savedTask = await res.json();
+        setTasks(prev => prev.map(t => t.id === tempId ? savedTask : t));
+      }
+    } catch (e) {
+      console.error('Failed to save task to backend:', e);
+    }
+  };
+
+  const handleUpdateTask = async (taskId, updates) => {
+    setTasks(prev => prev.map(t => t.id === taskId ? { ...t, ...updates } : t));
+
+    try {
+      await fetch(`/api/v1/tasks/${taskId}`, {
+        method: 'PATCH',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(updates)
+      });
+    } catch (e) {
+      console.error('Failed to update task on backend:', e);
+    }
+  };
+
+  const handleDeleteTask = async (taskId) => {
+    setTasks(prev => prev.filter(t => t.id !== taskId));
+
+    try {
+      await fetch(`/api/v1/tasks/${taskId}`, { method: 'DELETE' });
+    } catch (e) {
+      console.error('Failed to delete task on backend:', e);
+    }
+  };
+
+  // Projects CRUD
+  const handleAddProject = async (newProj) => {
+    const tempId = `prj-${Date.now()}`;
+    const tempProj = { id: tempId, ...newProj };
+    setProjects(prev => [tempProj, ...prev]);
+
+    try {
+      const res = await fetch('/api/v1/projects', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(newProj)
+      });
+      if (res.ok) {
+        const savedProj = await res.json();
+        setProjects(prev => prev.map(p => p.id === tempId ? savedProj : p));
+      }
+    } catch (e) {
+      console.error('Failed to save project to backend:', e);
+    }
+  };
+
+  const handleUpdateProject = async (projectId, updates) => {
+    setProjects(prev => prev.map(p => p.id === projectId ? { ...p, ...updates } : p));
+
+    try {
+      await fetch(`/api/v1/projects/${projectId}`, {
+        method: 'PATCH',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(updates)
+      });
+    } catch (e) {
+      console.error('Failed to update project on backend:', e);
+    }
+  };
+
+  const handleDeleteProject = async (projectId) => {
+    setProjects(prev => prev.filter(p => p.id !== projectId));
+
+    try {
+      await fetch(`/api/v1/projects/${projectId}`, { method: 'DELETE' });
+    } catch (e) {
+      console.error('Failed to delete project on backend:', e);
+    }
+  };
+
+  // Journal CRUD
+  const handleSaveJournal = async (journalEntry) => {
+    const tempId = `jnl-${Date.now()}`;
+    const tempObj = { id: tempId, ...journalEntry };
+    setJournals(prev => [tempObj, ...prev.filter(j => j.entry_date !== journalEntry.entry_date)]);
+
+    try {
+      const res = await fetch('/api/v1/journal', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(journalEntry)
+      });
+      if (res.ok) {
+        const savedJnl = await res.json();
+        setJournals(prev => [savedJnl, ...prev.filter(j => j.id !== tempId && j.entry_date !== savedJnl.entry_date)]);
+      }
+    } catch (e) {
+      console.error('Failed to save journal log:', e);
+    }
+  };
+
+  // Habits CRUD
+  const handleToggleHabit = async (id) => {
+    setHabits(prev => prev.map(h => {
+      if (h.id === id) {
+        const nextState = !h.is_completed_today;
+        return {
+          ...h,
+          is_completed_today: nextState,
+          streak_count: nextState ? h.streak_count + 1 : Math.max(0, h.streak_count - 1)
+        };
+      }
+      return h;
+    }));
+
+    try {
+      const res = await fetch(`/api/v1/habits/${id}/toggle`, { method: 'POST' });
+      if (res.ok) {
+        const updatedHabit = await res.json();
+        setHabits(prev => prev.map(h => h.id === id ? updatedHabit : h));
+      }
+    } catch (e) {
+      console.error('Failed to toggle habit:', e);
+    }
+  };
+
+  const handleAddHabit = async (newHabit) => {
+    const tempId = `hbt-${Date.now()}`;
+    const tempObj = { id: tempId, name: newHabit.name, streak_count: 0, is_completed_today: false };
+    setHabits(prev => [...prev, tempObj]);
+
+    try {
+      const res = await fetch('/api/v1/habits', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(newHabit)
+      });
+      if (res.ok) {
+        const saved = await res.json();
+        setHabits(prev => prev.map(h => h.id === tempId ? saved : h));
+      }
+    } catch (e) {
+      console.error('Failed to add habit:', e);
+    }
+  };
+
+  const handleDeleteHabit = async (habitId) => {
+    setHabits(prev => prev.filter(h => h.id !== habitId));
+
+    try {
+      await fetch(`/api/v1/habits/${habitId}`, { method: 'DELETE' });
+    } catch (e) {
+      console.error('Failed to delete habit:', e);
+    }
   };
 
   const handleSelectAction = (actionId) => {
@@ -113,6 +340,10 @@ export default function App() {
     }
   };
 
+  if (!authToken) {
+    return <LoginView onLoginSuccess={handleLoginSuccess} />;
+  }
+
   return (
     <div className="app-container">
       <Header
@@ -121,6 +352,8 @@ export default function App() {
         onOpenCmd={() => setIsCmdOpen(true)}
         isDark={isDark}
         onToggleTheme={toggleTheme}
+        user={authUser}
+        onLogout={handleLogout}
       />
 
       <div className="app-body">
@@ -133,23 +366,53 @@ export default function App() {
               tasks={tasks}
               projects={projects}
               onNavigate={setCurrentView}
+              onUpdateTask={handleUpdateTask}
             />
           )}
 
           {currentView === 'notes' && (
-            <NotesView notes={notes} />
+            <NotesView
+              notes={notes}
+              onAddNote={handleAddNote}
+              onUpdateNote={handleUpdateNote}
+              onDeleteNote={handleDeleteNote}
+              projects={projects}
+              tasks={tasks}
+            />
           )}
 
           {currentView === 'tasks' && (
-            <TasksView tasks={tasks} projects={projects} onAddTask={handleAddTask} />
+            <TasksView
+              tasks={tasks}
+              projects={projects}
+              onAddTask={handleAddTask}
+              onUpdateTask={handleUpdateTask}
+              onDeleteTask={handleDeleteTask}
+              onAddProject={handleAddProject}
+              onUpdateProject={handleUpdateProject}
+              onDeleteProject={handleDeleteProject}
+            />
           )}
 
           {currentView === 'journal' && (
-            <JournalView journal={[]} habits={habits} onToggleHabit={handleToggleHabit} />
+            <JournalView
+              journals={journals}
+              habits={habits}
+              onSaveJournal={handleSaveJournal}
+              onToggleHabit={handleToggleHabit}
+              onAddHabit={handleAddHabit}
+              onDeleteHabit={handleDeleteHabit}
+            />
           )}
 
           {currentView === 'graph' && (
-            <GraphView graphLinks={[]} notes={notes} />
+            <GraphView
+              notes={notes}
+              tasks={tasks}
+              projects={projects}
+              journals={journals}
+              onNavigate={setCurrentView}
+            />
           )}
         </main>
 

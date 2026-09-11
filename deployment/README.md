@@ -2,7 +2,7 @@
 
 **Document Version:** 1.0.0  
 **Target Platform:** Production / Staging Container Stack (Docker Compose + NGINX Reverse Proxy)  
-**Port Exposure:** `http://localhost:80` (Unified Single-Entry Architecture)  
+**Port Exposure:** `http://0.0.0.0:80` (Unified Ingress Architecture)  
 
 ---
 
@@ -42,7 +42,7 @@ Life OS deploys as an integrated containerized stack using **Docker Compose** an
 Ensure the deployment host has the following tools installed:
 
 - **Docker Engine:** `v24.0+`
-- **Docker Compose:** `v2.20+`
+- **Docker Compose:** `v2.20+` or `docker-compose`
 
 Verify installation:
 ```bash
@@ -77,45 +77,48 @@ Once the stack is running, seed the initial demo data (notes, tasks, projects, j
 curl -X POST http://localhost/api/v1/seed
 ```
 
-### Expected Output
-```json
-{
-  "status": "success",
-  "message": "Demo data populated successfully"
-}
+---
+
+## 5. Accessing from Another Machine on LAN / Network
+
+Because NGINX listens on `0.0.0.0:80`, Life OS is immediately accessible to any phone, laptop, or computer on your local network (LAN).
+
+### Step 1: Find Server's IP Address
+Run on your server:
+```bash
+hostname -I | awk '{print $1}'
 ```
+*(Example output: `192.168.1.100` or `10.0.0.55`)*
+
+### Step 2: Open Firewall (if UFW enabled)
+```bash
+sudo ufw allow 80/tcp
+```
+
+### Step 3: Access via Web Browser on Remote Machine
+On your phone, laptop, or tablet, open your browser and navigate to:
+```text
+http://<YOUR_SERVER_IP>/
+```
+*(Example: `http://192.168.1.100/`)*
 
 ---
 
-## 5. Verification & Service Health Checks
-
-### Check Container Status
-```bash
-docker compose ps
-```
-
-All 5 containers (`lifeos_nginx`, `lifeos_frontend`, `lifeos_backend`, `lifeos_postgres`, `lifeos_redis`) should display status `Up` or `Up (healthy)`.
-
-### Test Endpoints
+## 6. Verification & Service Health Checks
 
 | Resource | Target URL | Expected Response |
 | :--- | :--- | :--- |
-| **Web Application UI** | `http://localhost/` | Loads Cypher Life OS 3-Column Interface |
-| **API Health Check** | `http://localhost/api/v1/notes` | Returns JSON array of notes |
-| **OpenAPI Docs** | `http://localhost/api/v1/openapi.json` | Returns FastAPI OpenAPI specification |
+| **Web Application UI** | `http://<SERVER_IP>/` | Loads Cypher Life OS 3-Column Interface |
+| **API Health Check** | `http://<SERVER_IP>/api/v1/notes` | Returns JSON array of notes |
+| **OpenAPI Docs** | `http://<SERVER_IP>/api/v1/openapi.json` | Returns FastAPI OpenAPI specification |
 
 ---
 
-## 6. Managing & Troubleshooting
+## 7. Managing & Troubleshooting
 
 ### View Container Logs
 ```bash
-# Follow all container logs live
 docker compose logs -f
-
-# View specific service logs
-docker compose logs -f backend
-docker compose logs -f reverse-proxy
 ```
 
 ### Restart Services
@@ -127,17 +130,3 @@ docker compose restart
 ```bash
 docker compose down
 ```
-
-### Destroy Stack (Including Data Volumes)
-```bash
-docker compose down -v
-```
-
----
-
-## 7. Production Hardening & SSL/TLS Setup
-
-To terminate SSL/TLS for domain deployment:
-1. Update `deployment/nginx.conf` to add port 443 SSL listener.
-2. Mount Certbot / Let's Encrypt certificates volume (`/etc/letsencrypt`) into `lifeos_nginx`.
-3. Force HTTP-to-HTTPS redirect rule (`return 301 https://$host$request_uri;`).

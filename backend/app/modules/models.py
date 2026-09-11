@@ -8,7 +8,7 @@ def generate_uuid() -> str:
     return str(uuid.uuid4())
 
 def utc_now() -> datetime:
-    return datetime.now(timezone.utc)
+    return datetime.now(timezone.utc).replace(tzinfo=None)
 
 # ============================================================================
 # CONTEXT 1: AUTH & MULTI-TENANCY
@@ -30,6 +30,8 @@ class Note(Base):
 
     id: Mapped[str] = mapped_column(String(36), primary_key=True, default=generate_uuid)
     workspace_id: Mapped[str] = mapped_column(String(36), ForeignKey("workspaces.id"), nullable=False, index=True)
+    parent_id: Mapped[str] = mapped_column(String(36), ForeignKey("notes.id"), nullable=True, index=True)
+    folder_path: Mapped[str] = mapped_column(String(255), nullable=True, default="General")
     title: Mapped[str] = mapped_column(String(255), nullable=False)
     content: Mapped[str] = mapped_column(Text, nullable=False, default="")
     para_category: Mapped[str] = mapped_column(String(50), nullable=False, default="Resource") # Project, Area, Resource, Archive
