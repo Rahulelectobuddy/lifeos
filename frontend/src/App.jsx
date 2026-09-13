@@ -8,6 +8,7 @@ import JournalView from './views/JournalView';
 import GraphView from './views/GraphView';
 import LoginView from './views/LoginView';
 import CommandPaletteModal from './components/CommandPaletteModal';
+import MfaSetupModal from './components/MfaSetupModal';
 
 export default function App() {
   const [authToken, setAuthToken] = useState(() => localStorage.getItem('lifeos_jwt_token') || null);
@@ -19,6 +20,7 @@ export default function App() {
   const [currentView, setCurrentView] = useState('home'); // home, notes, tasks, journal, graph
   const [isDark, setIsDark] = useState(false);
   const [isCmdOpen, setIsCmdOpen] = useState(false);
+  const [isMfaModalOpen, setIsMfaModalOpen] = useState(false);
 
   const handleLoginSuccess = (token, user) => {
     setAuthToken(token);
@@ -27,11 +29,17 @@ export default function App() {
     localStorage.setItem('lifeos_user', JSON.stringify(user));
   };
 
-  const handleLogout = () => {
-    setAuthToken(null);
-    setAuthUser(null);
-    localStorage.removeItem('lifeos_jwt_token');
-    localStorage.removeItem('lifeos_user');
+  const handleLogout = async () => {
+    try {
+      await apiFetch('/api/v1/auth/logout', { method: 'POST' });
+    } catch (err) {
+      console.error('Logout API error:', err);
+    } finally {
+      setAuthToken(null);
+      setAuthUser(null);
+      localStorage.removeItem('lifeos_jwt_token');
+      localStorage.removeItem('lifeos_user');
+    }
   };
 
   // State data
@@ -492,6 +500,7 @@ export default function App() {
         onToggleTheme={toggleTheme}
         user={authUser}
         onLogout={handleLogout}
+        onOpenMfaModal={() => setIsMfaModalOpen(true)}
       />
 
       <div className="app-body">
@@ -565,6 +574,12 @@ export default function App() {
         isOpen={isCmdOpen}
         onClose={() => setIsCmdOpen(false)}
         onSelectAction={handleSelectAction}
+      />
+
+      <MfaSetupModal
+        isOpen={isMfaModalOpen}
+        onClose={() => setIsMfaModalOpen(false)}
+        apiFetch={apiFetch}
       />
     </div>
   );

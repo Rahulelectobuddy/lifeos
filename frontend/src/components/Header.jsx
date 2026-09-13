@@ -1,7 +1,7 @@
 import React from 'react';
-import { LayoutDashboard, BookOpen, CheckCircle2, Calendar, Network, Zap, Sun, Moon, LogOut, User } from 'lucide-react';
+import { LayoutDashboard, BookOpen, CheckCircle2, Calendar, Network, Zap, Sun, Moon, LogOut, User, ShieldCheck } from 'lucide-react';
 
-export default function Header({ currentView, onChangeView, onOpenCmd, isDark, onToggleTheme, user, onLogout }) {
+export default function Header({ currentView, onChangeView, onOpenCmd, isDark, onToggleTheme, user, onLogout, onOpenMfaModal }) {
   return (
     <header className="app-header">
       <div className="brand-section">
@@ -48,6 +48,17 @@ export default function Header({ currentView, onChangeView, onOpenCmd, isDark, o
             <User size={13} color="var(--accent-primary)" />
             <span>{user.username || 'admin'}</span>
           </div>
+        )}
+        {onOpenMfaModal && (
+          <button
+            className="cmd-k-btn"
+            onClick={onOpenMfaModal}
+            title="2FA Security Settings"
+            style={{ padding: '6px 10px', color: 'var(--accent-success)', borderColor: 'rgba(16, 185, 129, 0.3)', background: 'rgba(16, 185, 129, 0.08)' }}
+          >
+            <ShieldCheck size={14} />
+            <span style={{ fontSize: '12px', fontWeight: '600' }}>2FA Security</span>
+          </button>
         )}
         <button className="cmd-k-btn" onClick={onOpenCmd}>
           <Zap size={14} color="var(--accent-primary)" />

@@ -6,7 +6,11 @@ from typing import List
 from app.core.database import get_db
 from app.modules.models import Note, Task, Project, Area, DailyJournal, Habit, EntityLink, Workspace
 from app.modules import schemas
-from app.core.security import create_access_token, verify_access_token, STATIC_USER
+from app.core.security import (
+    create_access_token, verify_access_token, STATIC_USER,
+    create_mfa_token, verify_mfa_token, verify_mfa_code,
+    generate_totp_secret, get_totp_uri, verify_totp_code_for_secret, generate_totp_code_at
+)
 
 api_router = APIRouter()
 
@@ -17,21 +21,101 @@ DEFAULT_WS_ID = "default_ws"
 # ============================================================================
 # AUTHENTICATION ENDPOINTS
 # ============================================================================
-@api_router.post("/auth/login", response_model=schemas.TokenResponse)
+@api_router.post("/auth/login")
 async def login(credentials: schemas.LoginRequest):
     if credentials.username == STATIC_USER["username"] and credentials.password == STATIC_USER["password"]:
-        token = create_access_token({"sub": STATIC_USER["username"], "email": STATIC_USER["email"]})
-        user_info = {
-            "username": STATIC_USER["username"],
-            "name": STATIC_USER["name"],
-            "email": STATIC_USER["email"],
-            "role": STATIC_USER["role"]
+        # If mfa_code is provided directly in login payload
+        if credentials.mfa_code:
+            if not verify_mfa_code(credentials.username, credentials.mfa_code):
+                raise HTTPException(
+                    status_code=status.HTTP_401_UNAUTHORIZED,
+                    detail="Invalid 6-digit MFA verification code"
+                )
+            token = create_access_token({"sub": STATIC_USER["username"], "email": STATIC_USER["email"]})
+            user_info = {
+                "username": STATIC_USER["username"],
+                "name": STATIC_USER["name"],
+                "email": STATIC_USER["email"],
+                "role": STATIC_USER["role"]
+            }
+            return {"access_token": token, "token_type": "bearer", "user": user_info}
+
+        # Step 1 success -> Issue MFA challenge
+        mfa_token = create_mfa_token(credentials.username)
+        return {
+            "mfa_required": True,
+            "mfa_token": mfa_token,
+            "message": "Multi-Factor Authentication code required"
         }
-        return {"access_token": token, "token_type": "bearer", "user": user_info}
+
     raise HTTPException(
         status_code=status.HTTP_401_UNAUTHORIZED,
         detail="Invalid username or password"
     )
+
+@api_router.post("/auth/mfa/verify", response_model=schemas.TokenResponse)
+async def verify_mfa(req: schemas.MfaVerifyRequest):
+    username = verify_mfa_token(req.mfa_token)
+    if not username or username != STATIC_USER["username"]:
+        raise HTTPException(
+            status_code=status.HTTP_401_UNAUTHORIZED,
+            detail="MFA session expired or invalid. Please login again."
+        )
+
+    if not verify_mfa_code(username, req.mfa_code):
+        raise HTTPException(
+            status_code=status.HTTP_401_UNAUTHORIZED,
+            detail="Invalid 6-digit MFA verification code"
+        )
+
+    token = create_access_token({"sub": username, "email": STATIC_USER["email"]})
+    user_info = {
+        "username": username,
+        "name": STATIC_USER["name"],
+        "email": STATIC_USER["email"],
+        "role": STATIC_USER["role"]
+    }
+    return {"access_token": token, "token_type": "bearer", "user": user_info}
+
+@api_router.post("/auth/logout")
+async def logout():
+    """Endpoint for explicit user session logout."""
+    return {"message": "Successfully logged out", "status": "logged_out"}
+
+@api_router.get("/auth/mfa/status", response_model=schemas.MfaStatusResponse)
+async def get_mfa_status():
+    return {
+        "mfa_enabled": STATIC_USER.get("mfa_enabled", False),
+        "secret": STATIC_USER.get("mfa_secret") if STATIC_USER.get("mfa_enabled") else None
+    }
+
+@api_router.post("/auth/mfa/setup", response_model=schemas.MfaSetupResponse)
+async def setup_mfa():
+    secret = generate_totp_secret()
+    otpauth_url = get_totp_uri(secret, username=STATIC_USER["username"])
+    current_code = generate_totp_code_at(secret)
+    return {
+        "secret": secret,
+        "otpauth_url": otpauth_url,
+        "current_code": current_code
+    }
+
+@api_router.post("/auth/mfa/enable")
+async def enable_mfa(req: schemas.MfaEnableRequest):
+    if not verify_totp_code_for_secret(req.secret, req.code):
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail="Invalid 6-digit TOTP code. Please ensure your authenticator app is synced."
+        )
+    STATIC_USER["mfa_enabled"] = True
+    STATIC_USER["mfa_secret"] = req.secret
+    return {"message": "2FA successfully enabled!", "mfa_enabled": True}
+
+@api_router.post("/auth/mfa/disable")
+async def disable_mfa():
+    STATIC_USER["mfa_enabled"] = False
+    return {"message": "2FA successfully disabled.", "mfa_enabled": False}
+
 
 @api_router.get("/auth/me")
 async def get_current_user(token: str):

@@ -178,8 +178,34 @@ class EntityLinkOut(EntityLinkBase):
 class LoginRequest(BaseModel):
     username: str
     password: str
+    mfa_code: Optional[str] = None
+    mfa_token: Optional[str] = None
 
 class TokenResponse(BaseModel):
     access_token: str
     token_type: str = "bearer"
     user: dict
+
+class MfaVerifyRequest(BaseModel):
+    mfa_token: str
+    mfa_code: str
+
+class MfaChallengeResponse(BaseModel):
+    mfa_required: bool = True
+    mfa_token: str
+    message: str = "Multi-Factor Authentication code required"
+
+class MfaSetupResponse(BaseModel):
+    secret: str
+    otpauth_url: str
+    current_code: str
+
+class MfaEnableRequest(BaseModel):
+    secret: str
+    code: str
+
+class MfaStatusResponse(BaseModel):
+    mfa_enabled: bool
+    secret: Optional[str] = None
+
+
