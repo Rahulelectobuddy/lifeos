@@ -4,7 +4,7 @@ from sqlalchemy import select
 from typing import List
 
 from app.core.database import get_db
-from app.modules.models import Note, Task, Project, DailyJournal, Habit, EntityLink, Workspace
+from app.modules.models import Note, Task, Project, Area, DailyJournal, Habit, EntityLink, Workspace
 from app.modules import schemas
 from app.core.security import create_access_token, verify_access_token, STATIC_USER
 
@@ -465,6 +465,85 @@ async def delete_project(project_id: str, db: AsyncSession = Depends(get_db)):
     await db.delete(project)
     await db.commit()
     return {"status": "success", "message": f"Project {project_id} deleted"}
+
+
+# ============================================================================
+# AREAS OF LIFE ENDPOINTS
+# ============================================================================
+@api_router.get("/areas", response_model=List[schemas.AreaOut])
+async def list_areas(db: AsyncSession = Depends(get_db)):
+    await ensure_default_workspace(db)
+    stmt = select(Area).where(Area.workspace_id == DEFAULT_WS_ID).order_by(Area.created_at.asc())
+    res = await db.execute(stmt)
+    areas = res.scalars().all()
+    if len(areas) == 0:
+        demo_areas = [
+            Area(id="ara-1", workspace_id=DEFAULT_WS_ID, name="Health & Fitness", description="Physical wellness, exercise, nutrition, and sleep hygiene."),
+            Area(id="ara-2", workspace_id=DEFAULT_WS_ID, name="Finance & Wealth", description="Budgeting, investment portfolio, expense tracking, and savings."),
+            Area(id="ara-3", workspace_id=DEFAULT_WS_ID, name="Career & Deep Work", description="Professional skills, work projects, publications, and networking."),
+            Area(id="ara-4", workspace_id=DEFAULT_WS_ID, name="Homelab & Infrastructure", description="Server maintenance, ZFS pools, network security, and self-hosted services."),
+            Area(id="ara-5", workspace_id=DEFAULT_WS_ID, name="Personal Growth", description="Reading, learning, habit consistency, and daily reflection."),
+            Area(id="ara-6", workspace_id=DEFAULT_WS_ID, name="Daily Routines", description="Morning routine, evening shutdown, weekly planning, and chores.")
+        ]
+        db.add_all(demo_areas)
+        await db.commit()
+        stmt = select(Area).where(Area.workspace_id == DEFAULT_WS_ID).order_by(Area.created_at.asc())
+        res = await db.execute(stmt)
+        areas = res.scalars().all()
+    return areas
+
+@api_router.post("/areas", response_model=schemas.AreaOut, status_code=status.HTTP_201_CREATED)
+async def create_area(area_in: schemas.AreaCreate, db: AsyncSession = Depends(get_db)):
+    await ensure_default_workspace(db)
+    area = Area(
+        workspace_id=DEFAULT_WS_ID,
+        name=area_in.name,
+        description=area_in.description,
+        icon=area_in.icon,
+        color=area_in.color
+    )
+    db.add(area)
+    await db.commit()
+    await db.refresh(area)
+    return area
+
+@api_router.patch("/areas/{area_id}", response_model=schemas.AreaOut)
+async def update_area(area_id: str, area_update: schemas.AreaUpdate, db: AsyncSession = Depends(get_db)):
+    await ensure_default_workspace(db)
+    stmt = select(Area).where(Area.id == area_id).where(Area.workspace_id == DEFAULT_WS_ID)
+    res = await db.execute(stmt)
+    area = res.scalar_one_or_none()
+    update_data = area_update.model_dump(exclude_unset=True)
+    if not area:
+        area = Area(
+            id=area_id,
+            workspace_id=DEFAULT_WS_ID,
+            name=update_data.get("name", "Untitled Area"),
+            description=update_data.get("description", ""),
+            icon=update_data.get("icon", ""),
+            color=update_data.get("color", "")
+        )
+        db.add(area)
+    else:
+        for field, val in update_data.items():
+            setattr(area, field, val)
+    
+    await db.commit()
+    await db.refresh(area)
+    return area
+
+@api_router.delete("/areas/{area_id}")
+async def delete_area(area_id: str, db: AsyncSession = Depends(get_db)):
+    await ensure_default_workspace(db)
+    stmt = select(Area).where(Area.id == area_id).where(Area.workspace_id == DEFAULT_WS_ID)
+    res = await db.execute(stmt)
+    area = res.scalar_one_or_none()
+    if not area:
+        raise HTTPException(status_code=404, detail="Area not found")
+    
+    await db.delete(area)
+    await db.commit()
+    return {"status": "success", "message": f"Area {area_id} deleted"}
 
 
 # ============================================================================

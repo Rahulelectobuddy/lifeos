@@ -72,6 +72,18 @@ class Project(Base):
     created_at: Mapped[datetime] = mapped_column(DateTime, default=utc_now)
 
 
+class Area(Base):
+    __tablename__ = "areas"
+
+    id: Mapped[str] = mapped_column(String(36), primary_key=True, default=generate_uuid)
+    workspace_id: Mapped[str] = mapped_column(String(36), ForeignKey("workspaces.id"), nullable=False, index=True)
+    name: Mapped[str] = mapped_column(String(100), nullable=False)
+    description: Mapped[str] = mapped_column(Text, nullable=True, default="")
+    icon: Mapped[str] = mapped_column(String(50), nullable=True, default="")
+    color: Mapped[str] = mapped_column(String(50), nullable=True, default="")
+    created_at: Mapped[datetime] = mapped_column(DateTime, default=utc_now)
+
+
 # ============================================================================
 # CONTEXT 4: DAILY JOURNAL & HABITS
 # ============================================================================

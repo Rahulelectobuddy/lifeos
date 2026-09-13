@@ -117,6 +117,29 @@ class ProjectUpdate(BaseModel):
     target_date: Optional[str] = None
     status: Optional[str] = None
 
+
+# Area Schemas
+class AreaBase(BaseModel):
+    name: str
+    description: Optional[str] = ""
+    icon: Optional[str] = ""
+    color: Optional[str] = ""
+
+class AreaCreate(AreaBase):
+    workspace_id: str = "default_ws"
+
+class AreaUpdate(BaseModel):
+    name: Optional[str] = None
+    description: Optional[str] = None
+    icon: Optional[str] = None
+    color: Optional[str] = None
+
+class AreaOut(AreaBase):
+    id: str
+    workspace_id: str
+    created_at: datetime
+    model_config = ConfigDict(from_attributes=True)
+
 # Habit Schemas
 class HabitBase(BaseModel):
     name: str

@@ -15,9 +15,9 @@ async def lifespan(app: FastAPI):
         
         # Execute column migrations safely for existing tables
         migration_queries = [
-            "ALTER TABLE notes ADD COLUMN IF NOT EXISTS parent_id VARCHAR(36);",
-            "ALTER TABLE notes ADD COLUMN IF NOT EXISTS folder_path VARCHAR(255) DEFAULT 'General';",
-            "ALTER TABLE tasks ADD COLUMN IF NOT EXISTS target_name VARCHAR(255) DEFAULT '';"
+            "ALTER TABLE notes ADD COLUMN parent_id VARCHAR(36);",
+            "ALTER TABLE notes ADD COLUMN folder_path VARCHAR(255) DEFAULT 'General';",
+            "ALTER TABLE tasks ADD COLUMN target_name VARCHAR(255) DEFAULT '';"
         ]
         for query in migration_queries:
             try:

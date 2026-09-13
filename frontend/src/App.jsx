@@ -76,6 +76,15 @@ export default function App() {
     { id: 'prj-3', title: 'Universal Knowledge Graph Engine', description: 'Polymorphic relationship graph.', progress: 60, target_date: '2026-10-01' },
   ]);
 
+  const [areas, setAreas] = useState([
+    { id: 'ara-1', name: 'Health & Fitness', description: 'Physical wellness, exercise, nutrition.' },
+    { id: 'ara-2', name: 'Finance & Wealth', description: 'Budgeting, investment portfolio, expense tracking.' },
+    { id: 'ara-3', name: 'Career & Deep Work', description: 'Professional skills, work projects, publications.' },
+    { id: 'ara-4', name: 'Homelab & Infrastructure', description: 'Server maintenance, ZFS pools, network security.' },
+    { id: 'ara-5', name: 'Personal Growth', description: 'Reading, learning, habit consistency, and reflection.' },
+    { id: 'ara-6', name: 'Daily Routines', description: 'Morning routine, evening shutdown, weekly planning.' }
+  ]);
+
   const [habits, setHabits] = useState([
     { id: 'hbt-1', name: 'Morning Deep Work Session (2 Hours)', streak_count: 14, is_completed_today: true },
     { id: 'hbt-2', name: 'Daily Habit & Reflection Journaling', streak_count: 9, is_completed_today: true },
@@ -100,6 +109,11 @@ export default function App() {
     fetch('/api/v1/projects')
       .then(res => res.ok ? res.json() : [])
       .then(data => { if (Array.isArray(data) && data.length > 0) setProjects(data); })
+      .catch(() => {});
+
+    fetch('/api/v1/areas')
+      .then(res => res.ok ? res.json() : [])
+      .then(data => { if (Array.isArray(data) && data.length > 0) setAreas(data); })
       .catch(() => {});
 
     fetch('/api/v1/habits')
@@ -254,6 +268,53 @@ export default function App() {
     }
   };
 
+  // Areas CRUD
+  const handleAddArea = async (newArea) => {
+    const tempId = `ara-${Date.now()}`;
+    const tempArea = { id: tempId, ...newArea };
+    setAreas(prev => [...prev, tempArea]);
+
+    try {
+      const res = await fetch('/api/v1/areas', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(newArea)
+      });
+      if (res.ok) {
+        const savedArea = await res.json();
+        setAreas(prev => prev.map(a => a.id === tempId ? savedArea : a));
+        return savedArea;
+      }
+    } catch (e) {
+      console.error('Failed to save area to backend:', e);
+    }
+    return tempArea;
+  };
+
+  const handleUpdateArea = async (areaId, updates) => {
+    setAreas(prev => prev.map(a => a.id === areaId ? { ...a, ...updates } : a));
+
+    try {
+      await fetch(`/api/v1/areas/${areaId}`, {
+        method: 'PATCH',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(updates)
+      });
+    } catch (e) {
+      console.error('Failed to update area on backend:', e);
+    }
+  };
+
+  const handleDeleteArea = async (areaId) => {
+    setAreas(prev => prev.filter(a => a.id !== areaId));
+
+    try {
+      await fetch(`/api/v1/areas/${areaId}`, { method: 'DELETE' });
+    } catch (e) {
+      console.error('Failed to delete area on backend:', e);
+    }
+  };
+
   // Journal CRUD
   const handleSaveJournal = async (journalEntry) => {
     const tempId = `jnl-${Date.now()}`;
@@ -381,12 +442,16 @@ export default function App() {
             <TasksView
               tasks={tasks}
               projects={projects}
+              areas={areas}
               onAddTask={handleAddTask}
               onUpdateTask={handleUpdateTask}
               onDeleteTask={handleDeleteTask}
               onAddProject={handleAddProject}
               onUpdateProject={handleUpdateProject}
               onDeleteProject={handleDeleteProject}
+              onAddArea={handleAddArea}
+              onUpdateArea={handleUpdateArea}
+              onDeleteArea={handleDeleteArea}
             />
           )}
 

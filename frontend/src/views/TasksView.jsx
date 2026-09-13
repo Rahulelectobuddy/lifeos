@@ -8,26 +8,32 @@ import {
 export default function TasksView({
   tasks = [],
   projects = [],
+  areas = [],
   onAddTask,
   onUpdateTask,
   onDeleteTask,
   onAddProject,
   onUpdateProject,
-  onDeleteProject
+  onDeleteProject,
+  onAddArea,
+  onUpdateArea,
+  onDeleteArea
 }) {
-  const [viewMode, setViewMode] = useState('kanban'); // 'kanban', 'list', 'projects'
+  const [viewMode, setViewMode] = useState('kanban'); // 'kanban', 'list', 'projects', 'areas'
   const [filterCategory, setFilterCategory] = useState('ALL');
   const [searchQuery, setSearchQuery] = useState('');
 
-  // Default standard Areas for suggestion
-  const standardAreas = [
-    'Health & Fitness',
-    'Finance & Wealth',
-    'Career & Deep Work',
-    'Homelab & Infrastructure',
-    'Personal Growth',
-    'Daily Routines'
+  // Default standard Areas list
+  const defaultAreaList = [
+    { id: 'ara-1', name: 'Health & Fitness', description: 'Physical wellness, exercise, nutrition.' },
+    { id: 'ara-2', name: 'Finance & Wealth', description: 'Budgeting, investment portfolio, expense tracking.' },
+    { id: 'ara-3', name: 'Career & Deep Work', description: 'Professional skills, work projects, publications.' },
+    { id: 'ara-4', name: 'Homelab & Infrastructure', description: 'Server maintenance, ZFS pools, network security.' },
+    { id: 'ara-5', name: 'Personal Growth', description: 'Reading, learning, habit consistency, and reflection.' },
+    { id: 'ara-6', name: 'Daily Routines', description: 'Morning routine, evening shutdown, weekly planning.' }
   ];
+
+  const availableAreas = areas && areas.length > 0 ? areas : defaultAreaList;
 
   // New task form state
   const [newTaskTitle, setNewTaskTitle] = useState('');
@@ -37,6 +43,10 @@ export default function TasksView({
   const [newTaskTargetName, setNewTaskTargetName] = useState('');
   const [newTaskDueDate, setNewTaskDueDate] = useState('');
   const [showTaskForm, setShowTaskForm] = useState(false);
+
+  // Inline quick create states inside task modal
+  const [inlineCreateType, setInlineCreateType] = useState(null); // 'project' | 'area' | null
+  const [inlineTitle, setInlineTitle] = useState('');
 
   // Pop-up Edit Task Modal State
   const [editingTask, setEditingTask] = useState(null);
@@ -53,6 +63,11 @@ export default function TasksView({
   const [newProjDesc, setNewProjDesc] = useState('');
   const [newProjTargetDate, setNewProjTargetDate] = useState('');
   const [showProjForm, setShowProjForm] = useState(false);
+
+  // New area form state
+  const [newAreaName, setNewAreaName] = useState('');
+  const [newAreaDesc, setNewAreaDesc] = useState('');
+  const [showAreaForm, setShowAreaForm] = useState(false);
 
   // Drag and drop state
   const [draggedTaskId, setDraggedTaskId] = useState(null);
@@ -144,6 +159,55 @@ export default function TasksView({
     setShowProjForm(false);
   };
 
+  // Handle Area Creation
+  const handleCreateArea = (e) => {
+    e.preventDefault();
+    if (!newAreaName.trim()) return;
+
+    if (onAddArea) {
+      onAddArea({
+        name: newAreaName.trim(),
+        description: newAreaDesc.trim()
+      });
+    }
+
+    setNewAreaName('');
+    setNewAreaDesc('');
+    setShowAreaForm(false);
+  };
+
+  // Handle Inline Quick Project / Area Creation in Task Pop-up Modal
+  const handleInlineCreate = async (e) => {
+    e.preventDefault();
+    if (!inlineTitle.trim()) return;
+
+    const val = inlineTitle.trim();
+    if (inlineCreateType === 'project') {
+      if (onAddProject) {
+        await onAddProject({
+          title: val,
+          description: '',
+          progress: 0,
+          status: 'active'
+        });
+      }
+      setNewTaskTargetName(val);
+      if (editingTask) setEditTargetName(val);
+    } else if (inlineCreateType === 'area') {
+      if (onAddArea) {
+        await onAddArea({
+          name: val,
+          description: ''
+        });
+      }
+      setNewTaskTargetName(val);
+      if (editingTask) setEditTargetName(val);
+    }
+
+    setInlineTitle('');
+    setInlineCreateType(null);
+  };
+
   // Drag & Drop handlers
   const handleDragStart = (e, taskId) => {
     e.dataTransfer.setData('text/plain', taskId);
@@ -208,28 +272,15 @@ export default function TasksView({
             >
               <Target size={14} /> Projects ({projects.length})
             </button>
+            <button
+              className={`nav-tab-btn ${viewMode === 'areas' ? 'active' : ''}`}
+              onClick={() => setViewMode('areas')}
+            >
+              <Layers size={14} /> Areas ({availableAreas.length})
+            </button>
           </div>
 
-          {viewMode !== 'projects' ? (
-            <button
-              onClick={() => setShowTaskForm(!showTaskForm)}
-              style={{
-                background: 'var(--accent-primary)',
-                color: 'white',
-                padding: '8px 14px',
-                borderRadius: 'var(--radius-md)',
-                fontWeight: '600',
-                fontSize: '13px',
-                display: 'flex',
-                alignItems: 'center',
-                gap: '6px',
-                cursor: 'pointer',
-                border: 'none'
-              }}
-            >
-              <Plus size={16} /> New Task
-            </button>
-          ) : (
+          {viewMode === 'projects' ? (
             <button
               onClick={() => setShowProjForm(!showProjForm)}
               style={{
@@ -247,6 +298,44 @@ export default function TasksView({
               }}
             >
               <FolderPlus size={16} /> New Project
+            </button>
+          ) : viewMode === 'areas' ? (
+            <button
+              onClick={() => setShowAreaForm(!showAreaForm)}
+              style={{
+                background: 'var(--accent-primary)',
+                color: 'white',
+                padding: '8px 14px',
+                borderRadius: 'var(--radius-md)',
+                fontWeight: '600',
+                fontSize: '13px',
+                display: 'flex',
+                alignItems: 'center',
+                gap: '6px',
+                cursor: 'pointer',
+                border: 'none'
+              }}
+            >
+              <Plus size={16} /> New Area
+            </button>
+          ) : (
+            <button
+              onClick={() => setShowTaskForm(!showTaskForm)}
+              style={{
+                background: 'var(--accent-primary)',
+                color: 'white',
+                padding: '8px 14px',
+                borderRadius: 'var(--radius-md)',
+                fontWeight: '600',
+                fontSize: '13px',
+                display: 'flex',
+                alignItems: 'center',
+                gap: '6px',
+                cursor: 'pointer',
+                border: 'none'
+              }}
+            >
+              <Plus size={16} /> New Task
             </button>
           )}
         </div>
@@ -348,27 +437,99 @@ export default function TasksView({
                     {newTaskCategory === 'Project' ? 'Linked Project' : newTaskCategory === 'Area' ? 'Linked Area' : 'Target Label'}
                   </label>
                   {newTaskCategory === 'Project' ? (
-                    <select
-                      value={newTaskTargetName}
-                      onChange={(e) => setNewTaskTargetName(e.target.value)}
-                      style={{ width: '100%', padding: '8px', borderRadius: 'var(--radius-md)', border: '1px solid var(--border-subtle)', background: 'var(--bg-card)', color: 'var(--text-primary)' }}
-                    >
-                      <option value="">Select Project...</option>
-                      {projects.map(p => (
-                        <option key={p.id} value={p.title}>{p.title}</option>
-                      ))}
-                    </select>
+                    inlineCreateType === 'project' ? (
+                      <div style={{ display: 'flex', flexDirection: 'column', gap: '6px' }}>
+                        <input
+                          type="text"
+                          placeholder="New Project Title..."
+                          value={inlineTitle}
+                          onChange={(e) => setInlineTitle(e.target.value)}
+                          autoFocus
+                          style={{ width: '100%', padding: '6px 8px', borderRadius: 'var(--radius-sm)', border: '1px solid var(--accent-primary)', background: 'var(--bg-card)', color: 'var(--text-primary)', fontSize: '12px' }}
+                        />
+                        <div style={{ display: 'flex', gap: '4px' }}>
+                          <button
+                            type="button"
+                            onClick={handleInlineCreate}
+                            style={{ padding: '4px 8px', borderRadius: 'var(--radius-sm)', background: 'var(--accent-primary)', color: 'white', border: 'none', fontSize: '11px', fontWeight: '600', cursor: 'pointer' }}
+                          >
+                            Save & Select
+                          </button>
+                          <button
+                            type="button"
+                            onClick={() => { setInlineCreateType(null); setInlineTitle(''); }}
+                            style={{ padding: '4px 8px', borderRadius: 'var(--radius-sm)', background: 'transparent', border: '1px solid var(--border-subtle)', color: 'var(--text-muted)', fontSize: '11px', cursor: 'pointer' }}
+                          >
+                            Cancel
+                          </button>
+                        </div>
+                      </div>
+                    ) : (
+                      <select
+                        value={newTaskTargetName}
+                        onChange={(e) => {
+                          if (e.target.value === '__NEW__') {
+                            setInlineCreateType('project');
+                          } else {
+                            setNewTaskTargetName(e.target.value);
+                          }
+                        }}
+                        style={{ width: '100%', padding: '8px', borderRadius: 'var(--radius-md)', border: '1px solid var(--border-subtle)', background: 'var(--bg-card)', color: 'var(--text-primary)' }}
+                      >
+                        <option value="">Select Project...</option>
+                        {projects.map(p => (
+                          <option key={p.id} value={p.title}>{p.title}</option>
+                        ))}
+                        <option value="__NEW__">+ Create New Project...</option>
+                      </select>
+                    )
                   ) : newTaskCategory === 'Area' ? (
-                    <select
-                      value={newTaskTargetName}
-                      onChange={(e) => setNewTaskTargetName(e.target.value)}
-                      style={{ width: '100%', padding: '8px', borderRadius: 'var(--radius-md)', border: '1px solid var(--border-subtle)', background: 'var(--bg-card)', color: 'var(--text-primary)' }}
-                    >
-                      <option value="">Select Area...</option>
-                      {standardAreas.map(area => (
-                        <option key={area} value={area}>{area}</option>
-                      ))}
-                    </select>
+                    inlineCreateType === 'area' ? (
+                      <div style={{ display: 'flex', flexDirection: 'column', gap: '6px' }}>
+                        <input
+                          type="text"
+                          placeholder="New Area Name..."
+                          value={inlineTitle}
+                          onChange={(e) => setInlineTitle(e.target.value)}
+                          autoFocus
+                          style={{ width: '100%', padding: '6px 8px', borderRadius: 'var(--radius-sm)', border: '1px solid var(--accent-primary)', background: 'var(--bg-card)', color: 'var(--text-primary)', fontSize: '12px' }}
+                        />
+                        <div style={{ display: 'flex', gap: '4px' }}>
+                          <button
+                            type="button"
+                            onClick={handleInlineCreate}
+                            style={{ padding: '4px 8px', borderRadius: 'var(--radius-sm)', background: 'var(--accent-primary)', color: 'white', border: 'none', fontSize: '11px', fontWeight: '600', cursor: 'pointer' }}
+                          >
+                            Save & Select
+                          </button>
+                          <button
+                            type="button"
+                            onClick={() => { setInlineCreateType(null); setInlineTitle(''); }}
+                            style={{ padding: '4px 8px', borderRadius: 'var(--radius-sm)', background: 'transparent', border: '1px solid var(--border-subtle)', color: 'var(--text-muted)', fontSize: '11px', cursor: 'pointer' }}
+                          >
+                            Cancel
+                          </button>
+                        </div>
+                      </div>
+                    ) : (
+                      <select
+                        value={newTaskTargetName}
+                        onChange={(e) => {
+                          if (e.target.value === '__NEW__') {
+                            setInlineCreateType('area');
+                          } else {
+                            setNewTaskTargetName(e.target.value);
+                          }
+                        }}
+                        style={{ width: '100%', padding: '8px', borderRadius: 'var(--radius-md)', border: '1px solid var(--border-subtle)', background: 'var(--bg-card)', color: 'var(--text-primary)' }}
+                      >
+                        <option value="">Select Area...</option>
+                        {availableAreas.map(a => (
+                          <option key={a.id || a.name} value={a.name}>{a.name}</option>
+                        ))}
+                        <option value="__NEW__">+ Create New Area...</option>
+                      </select>
+                    )
                   ) : (
                     <input
                       type="text"
@@ -954,6 +1115,127 @@ export default function TasksView({
         </div>
       )}
 
+      {/* VIEW: AREAS MANAGER */}
+      {viewMode === 'areas' && (
+        <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(320px, 1fr))', gap: '16px' }}>
+          {availableAreas.length === 0 ? (
+            <div className="card" style={{ gridColumn: '1 / -1', padding: '32px', textAlign: 'center', color: 'var(--text-muted)' }}>
+              No active areas of life found. Click "New Area" to define a sphere of responsibility!
+            </div>
+          ) : (
+            availableAreas.map(a => (
+              <div key={a.id || a.name} className="card" style={{ background: 'var(--bg-card)', display: 'flex', flexDirection: 'column', gap: '12px' }}>
+                <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start' }}>
+                  <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
+                    <div style={{ width: '32px', height: '32px', borderRadius: 'var(--radius-md)', background: 'rgba(16, 185, 129, 0.15)', color: 'var(--para-area)', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
+                      <Layers size={16} />
+                    </div>
+                    <div>
+                      <h3 style={{ fontSize: '15px', fontWeight: '700' }}>{a.name}</h3>
+                      <span className="badge-para badge-area" style={{ fontSize: '10px' }}>Area of Life</span>
+                    </div>
+                  </div>
+                  {onDeleteArea && a.id && !a.id.startsWith('ara-1') && (
+                    <button
+                      onClick={() => onDeleteArea(a.id)}
+                      style={{ background: 'transparent', border: 'none', color: 'var(--text-muted)', cursor: 'pointer', padding: '2px' }}
+                    >
+                      <Trash2 size={14} />
+                    </button>
+                  )}
+                </div>
+
+                <p style={{ fontSize: '12.5px', color: 'var(--text-secondary)', lineHeight: '1.4' }}>
+                  {a.description || 'Continuous sphere of responsibility to maintain standards over time.'}
+                </p>
+
+                <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', fontSize: '11px', color: 'var(--text-muted)', borderTop: '1px solid var(--border-subtle)', paddingTop: '10px' }}>
+                  <span>Active Tasks: {tasks.filter(t => t.target_name === a.name || (t.para_category === 'Area' && t.target_name === a.name)).length}</span>
+                  <span style={{ color: 'var(--para-area)', fontWeight: '600' }}>PARA Standard</span>
+                </div>
+              </div>
+            ))
+          )}
+        </div>
+      )}
+
+      {/* New Area Pop-up Modal */}
+      {showAreaForm && (
+        <div style={{ position: 'fixed', inset: 0, background: 'rgba(0,0,0,0.5)', backdropFilter: 'blur(4px)', display: 'flex', alignItems: 'center', justifyContent: 'center', zIndex: 1000 }}>
+          <div className="card" style={{ width: '500px', background: 'var(--bg-surface)', padding: '24px', borderRadius: 'var(--radius-lg)' }}>
+            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '16px' }}>
+              <h3 style={{ fontWeight: '700', fontSize: '16px', display: 'flex', alignItems: 'center', gap: '6px' }}>
+                <Layers size={18} color="var(--para-area)" /> Create New Area of Life
+              </h3>
+              <button onClick={() => setShowAreaForm(false)} style={{ background: 'transparent', border: 'none', cursor: 'pointer', color: 'var(--text-muted)' }}>
+                <X size={18} />
+              </button>
+            </div>
+
+            <form onSubmit={handleCreateArea} style={{ display: 'flex', flexDirection: 'column', gap: '14px' }}>
+              <div>
+                <label style={{ fontSize: '11px', fontWeight: '600', color: 'var(--text-secondary)', display: 'block', marginBottom: '4px' }}>Area Name</label>
+                <input
+                  type="text"
+                  placeholder="Area name (e.g. Health & Longevity, Financial Freedom)..."
+                  value={newAreaName}
+                  onChange={(e) => setNewAreaName(e.target.value)}
+                  required
+                  autoFocus
+                  style={{
+                    width: '100%',
+                    padding: '10px 12px',
+                    borderRadius: 'var(--radius-md)',
+                    border: '1px solid var(--border-subtle)',
+                    background: 'var(--bg-card)',
+                    color: 'var(--text-primary)',
+                    outline: 'none',
+                    fontWeight: '600'
+                  }}
+                />
+              </div>
+
+              <div>
+                <label style={{ fontSize: '11px', fontWeight: '600', color: 'var(--text-secondary)', display: 'block', marginBottom: '4px' }}>Area Description & Standards</label>
+                <textarea
+                  placeholder="Key standards of responsibility to maintain over time..."
+                  value={newAreaDesc}
+                  onChange={(e) => setNewAreaDesc(e.target.value)}
+                  rows={3}
+                  style={{
+                    width: '100%',
+                    padding: '10px 12px',
+                    borderRadius: 'var(--radius-md)',
+                    border: '1px solid var(--border-subtle)',
+                    background: 'var(--bg-card)',
+                    color: 'var(--text-primary)',
+                    outline: 'none',
+                    resize: 'vertical',
+                    fontSize: '13px'
+                  }}
+                />
+              </div>
+
+              <div style={{ display: 'flex', justifyContent: 'flex-end', gap: '8px', marginTop: '10px', borderTop: '1px solid var(--border-subtle)', paddingTop: '14px' }}>
+                <button
+                  type="button"
+                  onClick={() => setShowAreaForm(false)}
+                  style={{ padding: '8px 14px', borderRadius: 'var(--radius-md)', border: '1px solid var(--border-subtle)', background: 'transparent', cursor: 'pointer' }}
+                >
+                  Cancel
+                </button>
+                <button
+                  type="submit"
+                  style={{ padding: '8px 18px', borderRadius: 'var(--radius-md)', background: 'var(--para-area)', color: 'white', border: 'none', fontWeight: '600', cursor: 'pointer', display: 'flex', alignItems: 'center', gap: '4px' }}
+                >
+                  <Check size={14} /> Save Area
+                </button>
+              </div>
+            </form>
+          </div>
+        </div>
+      )}
+
       {/* POP-UP EDIT TASK MODAL */}
       {editingTask && (
         <div style={{ position: 'fixed', inset: 0, background: 'rgba(0,0,0,0.5)', backdropFilter: 'blur(4px)', display: 'flex', alignItems: 'center', justifyContent: 'center', zIndex: 1000 }}>
@@ -1043,27 +1325,99 @@ export default function TasksView({
                     {editCategory === 'Project' ? 'Linked Project' : editCategory === 'Area' ? 'Linked Area' : 'Target Label'}
                   </label>
                   {editCategory === 'Project' ? (
-                    <select
-                      value={editTargetName}
-                      onChange={(e) => setEditTargetName(e.target.value)}
-                      style={{ width: '100%', padding: '8px', borderRadius: 'var(--radius-md)', border: '1px solid var(--border-subtle)', background: 'var(--bg-card)', color: 'var(--text-primary)' }}
-                    >
-                      <option value="">Select Project...</option>
-                      {projects.map(p => (
-                        <option key={p.id} value={p.title}>{p.title}</option>
-                      ))}
-                    </select>
+                    inlineCreateType === 'project' ? (
+                      <div style={{ display: 'flex', flexDirection: 'column', gap: '6px' }}>
+                        <input
+                          type="text"
+                          placeholder="New Project Title..."
+                          value={inlineTitle}
+                          onChange={(e) => setInlineTitle(e.target.value)}
+                          autoFocus
+                          style={{ width: '100%', padding: '6px 8px', borderRadius: 'var(--radius-sm)', border: '1px solid var(--accent-primary)', background: 'var(--bg-card)', color: 'var(--text-primary)', fontSize: '12px' }}
+                        />
+                        <div style={{ display: 'flex', gap: '4px' }}>
+                          <button
+                            type="button"
+                            onClick={handleInlineCreate}
+                            style={{ padding: '4px 8px', borderRadius: 'var(--radius-sm)', background: 'var(--accent-primary)', color: 'white', border: 'none', fontSize: '11px', fontWeight: '600', cursor: 'pointer' }}
+                          >
+                            Save & Select
+                          </button>
+                          <button
+                            type="button"
+                            onClick={() => { setInlineCreateType(null); setInlineTitle(''); }}
+                            style={{ padding: '4px 8px', borderRadius: 'var(--radius-sm)', background: 'transparent', border: '1px solid var(--border-subtle)', color: 'var(--text-muted)', fontSize: '11px', cursor: 'pointer' }}
+                          >
+                            Cancel
+                          </button>
+                        </div>
+                      </div>
+                    ) : (
+                      <select
+                        value={editTargetName}
+                        onChange={(e) => {
+                          if (e.target.value === '__NEW__') {
+                            setInlineCreateType('project');
+                          } else {
+                            setEditTargetName(e.target.value);
+                          }
+                        }}
+                        style={{ width: '100%', padding: '8px', borderRadius: 'var(--radius-md)', border: '1px solid var(--border-subtle)', background: 'var(--bg-card)', color: 'var(--text-primary)' }}
+                      >
+                        <option value="">Select Project...</option>
+                        {projects.map(p => (
+                          <option key={p.id} value={p.title}>{p.title}</option>
+                        ))}
+                        <option value="__NEW__">+ Create New Project...</option>
+                      </select>
+                    )
                   ) : editCategory === 'Area' ? (
-                    <select
-                      value={editTargetName}
-                      onChange={(e) => setEditTargetName(e.target.value)}
-                      style={{ width: '100%', padding: '8px', borderRadius: 'var(--radius-md)', border: '1px solid var(--border-subtle)', background: 'var(--bg-card)', color: 'var(--text-primary)' }}
-                    >
-                      <option value="">Select Area...</option>
-                      {standardAreas.map(area => (
-                        <option key={area} value={area}>{area}</option>
-                      ))}
-                    </select>
+                    inlineCreateType === 'area' ? (
+                      <div style={{ display: 'flex', flexDirection: 'column', gap: '6px' }}>
+                        <input
+                          type="text"
+                          placeholder="New Area Name..."
+                          value={inlineTitle}
+                          onChange={(e) => setInlineTitle(e.target.value)}
+                          autoFocus
+                          style={{ width: '100%', padding: '6px 8px', borderRadius: 'var(--radius-sm)', border: '1px solid var(--accent-primary)', background: 'var(--bg-card)', color: 'var(--text-primary)', fontSize: '12px' }}
+                        />
+                        <div style={{ display: 'flex', gap: '4px' }}>
+                          <button
+                            type="button"
+                            onClick={handleInlineCreate}
+                            style={{ padding: '4px 8px', borderRadius: 'var(--radius-sm)', background: 'var(--accent-primary)', color: 'white', border: 'none', fontSize: '11px', fontWeight: '600', cursor: 'pointer' }}
+                          >
+                            Save & Select
+                          </button>
+                          <button
+                            type="button"
+                            onClick={() => { setInlineCreateType(null); setInlineTitle(''); }}
+                            style={{ padding: '4px 8px', borderRadius: 'var(--radius-sm)', background: 'transparent', border: '1px solid var(--border-subtle)', color: 'var(--text-muted)', fontSize: '11px', cursor: 'pointer' }}
+                          >
+                            Cancel
+                          </button>
+                        </div>
+                      </div>
+                    ) : (
+                      <select
+                        value={editTargetName}
+                        onChange={(e) => {
+                          if (e.target.value === '__NEW__') {
+                            setInlineCreateType('area');
+                          } else {
+                            setEditTargetName(e.target.value);
+                          }
+                        }}
+                        style={{ width: '100%', padding: '8px', borderRadius: 'var(--radius-md)', border: '1px solid var(--border-subtle)', background: 'var(--bg-card)', color: 'var(--text-primary)' }}
+                      >
+                        <option value="">Select Area...</option>
+                        {availableAreas.map(a => (
+                          <option key={a.id || a.name} value={a.name}>{a.name}</option>
+                        ))}
+                        <option value="__NEW__">+ Create New Area...</option>
+                      </select>
+                    )
                   ) : (
                     <input
                       type="text"
