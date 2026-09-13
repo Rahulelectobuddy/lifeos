@@ -41,16 +41,7 @@ export default function LoginView({ onLoginSuccess }) {
       }
     } catch (err) {
       console.error('Login request failed:', err);
-      // Fallback for offline client demo
-      if (username.trim() === 'admin' && password.trim() === 'admin123') {
-        const dummyToken = 'jwt_demo_token_cypher_lifeos';
-        const dummyUser = { username: 'admin', name: 'Cypher Administrator', email: 'admin@lifeos.dev', role: 'admin' };
-        if (onLoginSuccess) {
-          onLoginSuccess(dummyToken, dummyUser);
-        }
-      } else {
-        setErrorMsg('Network error. Use demo credentials (admin / admin123).');
-      }
+      setErrorMsg('Unable to connect to authentication server. Please ensure the backend API is running.');
     } finally {
       setIsLoading(false);
     }

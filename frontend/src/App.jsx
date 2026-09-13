@@ -94,38 +94,48 @@ export default function App() {
 
   const [journals, setJournals] = useState([]);
 
-  // Fetch initial seed data from backend API if available
+  // Centralized API fetch helper with JWT Authorization headers & error handling
+  const apiFetch = async (url, options = {}) => {
+    const headers = {
+      'Content-Type': 'application/json',
+      ...(authToken ? { 'Authorization': `Bearer ${authToken}` } : {}),
+      ...(options.headers || {})
+    };
+    return fetch(url, { ...options, headers });
+  };
+
+  // Fetch initial data from backend API
   useEffect(() => {
-    fetch('/api/v1/notes')
+    apiFetch('/api/v1/notes')
       .then(res => res.ok ? res.json() : [])
       .then(data => { if (Array.isArray(data) && data.length > 0) setNotes(data); })
-      .catch(() => {});
+      .catch(e => console.error('API Error fetching notes:', e));
 
-    fetch('/api/v1/tasks')
+    apiFetch('/api/v1/tasks')
       .then(res => res.ok ? res.json() : [])
       .then(data => { if (Array.isArray(data) && data.length > 0) setTasks(data); })
-      .catch(() => {});
+      .catch(e => console.error('API Error fetching tasks:', e));
 
-    fetch('/api/v1/projects')
+    apiFetch('/api/v1/projects')
       .then(res => res.ok ? res.json() : [])
       .then(data => { if (Array.isArray(data) && data.length > 0) setProjects(data); })
-      .catch(() => {});
+      .catch(e => console.error('API Error fetching projects:', e));
 
-    fetch('/api/v1/areas')
+    apiFetch('/api/v1/areas')
       .then(res => res.ok ? res.json() : [])
       .then(data => { if (Array.isArray(data) && data.length > 0) setAreas(data); })
-      .catch(() => {});
+      .catch(e => console.error('API Error fetching areas:', e));
 
-    fetch('/api/v1/habits')
+    apiFetch('/api/v1/habits')
       .then(res => res.ok ? res.json() : [])
       .then(data => { if (Array.isArray(data) && data.length > 0) setHabits(data); })
-      .catch(() => {});
+      .catch(e => console.error('API Error fetching habits:', e));
 
-    fetch('/api/v1/journal')
+    apiFetch('/api/v1/journal')
       .then(res => res.ok ? res.json() : [])
       .then(data => { if (Array.isArray(data) && data.length > 0) setJournals(data); })
-      .catch(() => {});
-  }, []);
+      .catch(e => console.error('API Error fetching journal:', e));
+  }, [authToken]);
 
   const toggleTheme = () => {
     const nextDark = !isDark;
@@ -140,40 +150,55 @@ export default function App() {
     setNotes(prev => [tempObj, ...prev]);
 
     try {
-      const res = await fetch('/api/v1/notes', {
+      const res = await apiFetch('/api/v1/notes', {
         method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify(newNote)
       });
       if (res.ok) {
         const savedNote = await res.json();
         setNotes(prev => prev.map(n => n.id === tempId ? savedNote : n));
+        return savedNote;
+      } else {
+        setNotes(prev => prev.filter(n => n.id !== tempId));
+        console.error('Failed to create note on backend:', await res.text());
       }
     } catch (e) {
+      setNotes(prev => prev.filter(n => n.id !== tempId));
       console.error('Failed to save note:', e);
     }
   };
 
   const handleUpdateNote = async (noteId, updates) => {
+    const originalNotes = [...notes];
     setNotes(prev => prev.map(n => n.id === noteId ? { ...n, ...updates } : n));
 
     try {
-      await fetch(`/api/v1/notes/${noteId}`, {
+      const res = await apiFetch(`/api/v1/notes/${noteId}`, {
         method: 'PATCH',
-        headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify(updates)
       });
+      if (!res.ok) {
+        setNotes(originalNotes);
+        console.error('Failed to update note on backend:', await res.text());
+      }
     } catch (e) {
+      setNotes(originalNotes);
       console.error('Failed to update note:', e);
     }
   };
 
   const handleDeleteNote = async (noteId) => {
+    const originalNotes = [...notes];
     setNotes(prev => prev.filter(n => n.id !== noteId));
 
     try {
-      await fetch(`/api/v1/notes/${noteId}`, { method: 'DELETE' });
+      const res = await apiFetch(`/api/v1/notes/${noteId}`, { method: 'DELETE' });
+      if (!res.ok) {
+        setNotes(originalNotes);
+        console.error('Failed to delete note on backend:', await res.text());
+      }
     } catch (e) {
+      setNotes(originalNotes);
       console.error('Failed to delete note:', e);
     }
   };
@@ -185,40 +210,55 @@ export default function App() {
     setTasks(prev => [tempTask, ...prev]);
 
     try {
-      const res = await fetch('/api/v1/tasks', {
+      const res = await apiFetch('/api/v1/tasks', {
         method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify(newTask)
       });
       if (res.ok) {
         const savedTask = await res.json();
         setTasks(prev => prev.map(t => t.id === tempId ? savedTask : t));
+        return savedTask;
+      } else {
+        setTasks(prev => prev.filter(t => t.id !== tempId));
+        console.error('Failed to save task to backend:', await res.text());
       }
     } catch (e) {
+      setTasks(prev => prev.filter(t => t.id !== tempId));
       console.error('Failed to save task to backend:', e);
     }
   };
 
   const handleUpdateTask = async (taskId, updates) => {
+    const originalTasks = [...tasks];
     setTasks(prev => prev.map(t => t.id === taskId ? { ...t, ...updates } : t));
 
     try {
-      await fetch(`/api/v1/tasks/${taskId}`, {
+      const res = await apiFetch(`/api/v1/tasks/${taskId}`, {
         method: 'PATCH',
-        headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify(updates)
       });
+      if (!res.ok) {
+        setTasks(originalTasks);
+        console.error('Failed to update task on backend:', await res.text());
+      }
     } catch (e) {
+      setTasks(originalTasks);
       console.error('Failed to update task on backend:', e);
     }
   };
 
   const handleDeleteTask = async (taskId) => {
+    const originalTasks = [...tasks];
     setTasks(prev => prev.filter(t => t.id !== taskId));
 
     try {
-      await fetch(`/api/v1/tasks/${taskId}`, { method: 'DELETE' });
+      const res = await apiFetch(`/api/v1/tasks/${taskId}`, { method: 'DELETE' });
+      if (!res.ok) {
+        setTasks(originalTasks);
+        console.error('Failed to delete task on backend:', await res.text());
+      }
     } catch (e) {
+      setTasks(originalTasks);
       console.error('Failed to delete task on backend:', e);
     }
   };
@@ -230,40 +270,55 @@ export default function App() {
     setProjects(prev => [tempProj, ...prev]);
 
     try {
-      const res = await fetch('/api/v1/projects', {
+      const res = await apiFetch('/api/v1/projects', {
         method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify(newProj)
       });
       if (res.ok) {
         const savedProj = await res.json();
         setProjects(prev => prev.map(p => p.id === tempId ? savedProj : p));
+        return savedProj;
+      } else {
+        setProjects(prev => prev.filter(p => p.id !== tempId));
+        console.error('Failed to save project to backend:', await res.text());
       }
     } catch (e) {
+      setProjects(prev => prev.filter(p => p.id !== tempId));
       console.error('Failed to save project to backend:', e);
     }
   };
 
   const handleUpdateProject = async (projectId, updates) => {
+    const originalProjects = [...projects];
     setProjects(prev => prev.map(p => p.id === projectId ? { ...p, ...updates } : p));
 
     try {
-      await fetch(`/api/v1/projects/${projectId}`, {
+      const res = await apiFetch(`/api/v1/projects/${projectId}`, {
         method: 'PATCH',
-        headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify(updates)
       });
+      if (!res.ok) {
+        setProjects(originalProjects);
+        console.error('Failed to update project on backend:', await res.text());
+      }
     } catch (e) {
+      setProjects(originalProjects);
       console.error('Failed to update project on backend:', e);
     }
   };
 
   const handleDeleteProject = async (projectId) => {
+    const originalProjects = [...projects];
     setProjects(prev => prev.filter(p => p.id !== projectId));
 
     try {
-      await fetch(`/api/v1/projects/${projectId}`, { method: 'DELETE' });
+      const res = await apiFetch(`/api/v1/projects/${projectId}`, { method: 'DELETE' });
+      if (!res.ok) {
+        setProjects(originalProjects);
+        console.error('Failed to delete project on backend:', await res.text());
+      }
     } catch (e) {
+      setProjects(originalProjects);
       console.error('Failed to delete project on backend:', e);
     }
   };
@@ -275,42 +330,56 @@ export default function App() {
     setAreas(prev => [...prev, tempArea]);
 
     try {
-      const res = await fetch('/api/v1/areas', {
+      const res = await apiFetch('/api/v1/areas', {
         method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify(newArea)
       });
       if (res.ok) {
         const savedArea = await res.json();
         setAreas(prev => prev.map(a => a.id === tempId ? savedArea : a));
         return savedArea;
+      } else {
+        setAreas(prev => prev.filter(a => a.id !== tempId));
+        console.error('Failed to save area to backend:', await res.text());
       }
     } catch (e) {
+      setAreas(prev => prev.filter(a => a.id !== tempId));
       console.error('Failed to save area to backend:', e);
     }
     return tempArea;
   };
 
   const handleUpdateArea = async (areaId, updates) => {
+    const originalAreas = [...areas];
     setAreas(prev => prev.map(a => a.id === areaId ? { ...a, ...updates } : a));
 
     try {
-      await fetch(`/api/v1/areas/${areaId}`, {
+      const res = await apiFetch(`/api/v1/areas/${areaId}`, {
         method: 'PATCH',
-        headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify(updates)
       });
+      if (!res.ok) {
+        setAreas(originalAreas);
+        console.error('Failed to update area on backend:', await res.text());
+      }
     } catch (e) {
+      setAreas(originalAreas);
       console.error('Failed to update area on backend:', e);
     }
   };
 
   const handleDeleteArea = async (areaId) => {
+    const originalAreas = [...areas];
     setAreas(prev => prev.filter(a => a.id !== areaId));
 
     try {
-      await fetch(`/api/v1/areas/${areaId}`, { method: 'DELETE' });
+      const res = await apiFetch(`/api/v1/areas/${areaId}`, { method: 'DELETE' });
+      if (!res.ok) {
+        setAreas(originalAreas);
+        console.error('Failed to delete area on backend:', await res.text());
+      }
     } catch (e) {
+      setAreas(originalAreas);
       console.error('Failed to delete area on backend:', e);
     }
   };
@@ -322,9 +391,8 @@ export default function App() {
     setJournals(prev => [tempObj, ...prev.filter(j => j.entry_date !== journalEntry.entry_date)]);
 
     try {
-      const res = await fetch('/api/v1/journal', {
+      const res = await apiFetch('/api/v1/journal', {
         method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify(journalEntry)
       });
       if (res.ok) {
@@ -338,6 +406,7 @@ export default function App() {
 
   // Habits CRUD
   const handleToggleHabit = async (id) => {
+    const originalHabits = [...habits];
     setHabits(prev => prev.map(h => {
       if (h.id === id) {
         const nextState = !h.is_completed_today;
@@ -351,12 +420,15 @@ export default function App() {
     }));
 
     try {
-      const res = await fetch(`/api/v1/habits/${id}/toggle`, { method: 'POST' });
+      const res = await apiFetch(`/api/v1/habits/${id}/toggle`, { method: 'POST' });
       if (res.ok) {
         const updatedHabit = await res.json();
         setHabits(prev => prev.map(h => h.id === id ? updatedHabit : h));
+      } else {
+        setHabits(originalHabits);
       }
     } catch (e) {
+      setHabits(originalHabits);
       console.error('Failed to toggle habit:', e);
     }
   };
@@ -367,26 +439,33 @@ export default function App() {
     setHabits(prev => [...prev, tempObj]);
 
     try {
-      const res = await fetch('/api/v1/habits', {
+      const res = await apiFetch('/api/v1/habits', {
         method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify(newHabit)
       });
       if (res.ok) {
         const saved = await res.json();
         setHabits(prev => prev.map(h => h.id === tempId ? saved : h));
+      } else {
+        setHabits(prev => prev.filter(h => h.id !== tempId));
       }
     } catch (e) {
+      setHabits(prev => prev.filter(h => h.id !== tempId));
       console.error('Failed to add habit:', e);
     }
   };
 
   const handleDeleteHabit = async (habitId) => {
+    const originalHabits = [...habits];
     setHabits(prev => prev.filter(h => h.id !== habitId));
 
     try {
-      await fetch(`/api/v1/habits/${habitId}`, { method: 'DELETE' });
+      const res = await apiFetch(`/api/v1/habits/${habitId}`, { method: 'DELETE' });
+      if (!res.ok) {
+        setHabits(originalHabits);
+      }
     } catch (e) {
+      setHabits(originalHabits);
       console.error('Failed to delete habit:', e);
     }
   };
@@ -434,7 +513,11 @@ export default function App() {
               onUpdateNote={handleUpdateNote}
               onDeleteNote={handleDeleteNote}
               projects={projects}
+              areas={areas}
               tasks={tasks}
+              onAddTask={handleAddTask}
+              onAddProject={handleAddProject}
+              onAddArea={handleAddArea}
             />
           )}
 

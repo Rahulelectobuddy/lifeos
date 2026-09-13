@@ -1,7 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import {
   BookOpen, Pin, Tag, Share2, Plus, FileText, Link2, Trash2, Search,
-  Filter, Edit3, Check, X, Folder, FolderOpen, ChevronRight, ChevronDown, FileCode, Eye
+  Filter, Edit3, Check, X, Folder, FolderOpen, ChevronRight, ChevronDown, FileCode, Eye, CheckSquare
 } from 'lucide-react';
 
 // Markdown Preview Renderer Helper
@@ -89,7 +89,11 @@ export default function NotesView({
   onUpdateNote,
   onDeleteNote,
   projects = [],
-  tasks = []
+  areas = [],
+  tasks = [],
+  onAddTask,
+  onAddProject,
+  onAddArea
 }) {
   const [activeNote, setActiveNote] = useState(notes[0] || null);
   const [searchQuery, setSearchQuery] = useState('');
@@ -114,6 +118,44 @@ export default function NotesView({
   const [newFolder, setNewFolder] = useState('General');
   const [newTags, setNewTags] = useState('');
   const [newPinned, setNewPinned] = useState(false);
+
+  // Create Task Modal state (from Note)
+  const [showTaskModal, setShowTaskModal] = useState(false);
+  const [taskTitle, setTaskTitle] = useState('');
+  const [taskDesc, setTaskDesc] = useState('');
+  const [taskPriority, setTaskPriority] = useState('P2');
+  const [taskCategory, setTaskCategory] = useState('Resource');
+  const [taskTargetName, setTaskTargetName] = useState('');
+  const [taskDueDate, setTaskDueDate] = useState('');
+
+  const openTaskModal = () => {
+    if (!activeNote) return;
+    setTaskTitle(activeNote.title || '');
+    setTaskDesc(`Context from Note: ${activeNote.title}\n\n${activeNote.content || ''}`);
+    setTaskCategory(activeNote.para_category || 'Resource');
+    setTaskTargetName(activeNote.folder_path || '');
+    setTaskDueDate('');
+    setShowTaskModal(true);
+  };
+
+  const handleCreateTaskFromNote = (e) => {
+    e.preventDefault();
+    if (!taskTitle.trim()) return;
+
+    if (onAddTask) {
+      onAddTask({
+        title: taskTitle.trim(),
+        description: taskDesc.trim(),
+        status: 'todo',
+        priority: taskPriority,
+        para_category: taskCategory,
+        target_name: taskTargetName.trim(),
+        due_date: taskDueDate || null
+      });
+    }
+
+    setShowTaskModal(false);
+  };
 
   // Sync activeNote when notes list changes
   useEffect(() => {
@@ -426,6 +468,13 @@ export default function NotesView({
                 {!isEditing ? (
                   <>
                     <button
+                      onClick={openTaskModal}
+                      title="Create action item task from this note"
+                      style={{ padding: '6px 10px', borderRadius: 'var(--radius-sm)', border: '1px solid var(--accent-primary)', background: 'rgba(99, 102, 241, 0.1)', color: 'var(--accent-primary)', cursor: 'pointer', display: 'flex', alignItems: 'center', gap: '4px', fontSize: '12px', fontWeight: '600' }}
+                    >
+                      <CheckSquare size={14} /> + Add Task
+                    </button>
+                    <button
                       onClick={startEditing}
                       title="Edit note"
                       style={{ padding: '6px 10px', borderRadius: 'var(--radius-sm)', border: '1px solid var(--border-subtle)', background: 'var(--bg-surface)', cursor: 'pointer', display: 'flex', alignItems: 'center', gap: '4px', fontSize: '12px', fontWeight: '600' }}
@@ -601,6 +650,102 @@ export default function NotesView({
                   <button type="button" onClick={() => setShowNewModal(false)} style={{ padding: '8px 14px', borderRadius: 'var(--radius-md)', border: '1px solid var(--border-subtle)', background: 'transparent', cursor: 'pointer' }}>Cancel</button>
                   <button type="submit" style={{ padding: '8px 18px', borderRadius: 'var(--radius-md)', background: 'var(--accent-primary)', color: 'white', border: 'none', fontWeight: '600', cursor: 'pointer' }}>Create Note</button>
                 </div>
+              </div>
+            </form>
+          </div>
+        </div>
+      )}
+
+      {/* New Task Modal from Note */}
+      {showTaskModal && (
+        <div style={{ position: 'fixed', inset: 0, background: 'rgba(0,0,0,0.5)', display: 'flex', alignItems: 'center', justifyContent: 'center', zIndex: 1000 }}>
+          <div className="card" style={{ width: '520px', background: 'var(--bg-surface)', padding: '24px', borderRadius: 'var(--radius-md)' }}>
+            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '16px' }}>
+              <h3 style={{ fontWeight: '700', fontSize: '16px', display: 'flex', alignItems: 'center', gap: '8px' }}>
+                <CheckSquare size={18} color="var(--accent-primary)" /> Create Action Task from Note
+              </h3>
+              <button onClick={() => setShowTaskModal(false)} style={{ background: 'transparent', border: 'none', cursor: 'pointer' }}><X size={18} /></button>
+            </div>
+
+            <form onSubmit={handleCreateTaskFromNote} style={{ display: 'flex', flexDirection: 'column', gap: '14px' }}>
+              <div>
+                <label style={{ fontSize: '12px', fontWeight: '600', color: 'var(--text-secondary)', display: 'block', marginBottom: '4px' }}>Task Title</label>
+                <input
+                  type="text"
+                  placeholder="Task Title..."
+                  value={taskTitle}
+                  onChange={(e) => setTaskTitle(e.target.value)}
+                  required
+                  autoFocus
+                  style={{ width: '100%', padding: '10px 14px', borderRadius: 'var(--radius-md)', border: '1px solid var(--border-subtle)', background: 'var(--bg-card)', color: 'var(--text-primary)', outline: 'none' }}
+                />
+              </div>
+
+              <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr 1fr', gap: '10px' }}>
+                <div>
+                  <label style={{ fontSize: '11px', fontWeight: '600', color: 'var(--text-secondary)', display: 'block', marginBottom: '4px' }}>Priority</label>
+                  <select
+                    value={taskPriority}
+                    onChange={(e) => setTaskPriority(e.target.value)}
+                    style={{ width: '100%', padding: '8px', borderRadius: 'var(--radius-md)', border: '1px solid var(--border-subtle)', background: 'var(--bg-card)', color: 'var(--text-primary)' }}
+                  >
+                    <option value="P1">P1 - High</option>
+                    <option value="P2">P2 - Medium</option>
+                    <option value="P3">P3 - Low</option>
+                    <option value="P4">P4 - Minimal</option>
+                  </select>
+                </div>
+
+                <div>
+                  <label style={{ fontSize: '11px', fontWeight: '600', color: 'var(--text-secondary)', display: 'block', marginBottom: '4px' }}>PARA Category</label>
+                  <select
+                    value={taskCategory}
+                    onChange={(e) => setTaskCategory(e.target.value)}
+                    style={{ width: '100%', padding: '8px', borderRadius: 'var(--radius-md)', border: '1px solid var(--border-subtle)', background: 'var(--bg-card)', color: 'var(--text-primary)' }}
+                  >
+                    <option value="Project">Project</option>
+                    <option value="Area">Area</option>
+                    <option value="Resource">Resource</option>
+                    <option value="Archive">Archive</option>
+                  </select>
+                </div>
+
+                <div>
+                  <label style={{ fontSize: '11px', fontWeight: '600', color: 'var(--text-secondary)', display: 'block', marginBottom: '4px' }}>Due Date</label>
+                  <input
+                    type="date"
+                    value={taskDueDate}
+                    onChange={(e) => setTaskDueDate(e.target.value)}
+                    style={{ width: '100%', padding: '8px', borderRadius: 'var(--radius-md)', border: '1px solid var(--border-subtle)', background: 'var(--bg-card)', color: 'var(--text-primary)' }}
+                  />
+                </div>
+              </div>
+
+              <div>
+                <label style={{ fontSize: '11px', fontWeight: '600', color: 'var(--text-secondary)', display: 'block', marginBottom: '4px' }}>Project / Target Name</label>
+                <input
+                  type="text"
+                  placeholder="e.g. Infrastructure Setup or Work..."
+                  value={taskTargetName}
+                  onChange={(e) => setTaskTargetName(e.target.value)}
+                  style={{ width: '100%', padding: '8px', borderRadius: 'var(--radius-md)', border: '1px solid var(--border-subtle)', background: 'var(--bg-card)', color: 'var(--text-primary)' }}
+                />
+              </div>
+
+              <div>
+                <label style={{ fontSize: '11px', fontWeight: '600', color: 'var(--text-secondary)', display: 'block', marginBottom: '4px' }}>Task Description & Context</label>
+                <textarea
+                  placeholder="Task details..."
+                  value={taskDesc}
+                  onChange={(e) => setTaskDesc(e.target.value)}
+                  rows={4}
+                  style={{ width: '100%', padding: '10px 14px', borderRadius: 'var(--radius-md)', border: '1px solid var(--border-subtle)', background: 'var(--bg-card)', color: 'var(--text-primary)', outline: 'none', resize: 'vertical' }}
+                />
+              </div>
+
+              <div style={{ display: 'flex', justifyContent: 'flex-end', gap: '8px', marginTop: '8px' }}>
+                <button type="button" onClick={() => setShowTaskModal(false)} style={{ padding: '8px 14px', borderRadius: 'var(--radius-md)', border: '1px solid var(--border-subtle)', background: 'transparent', cursor: 'pointer' }}>Cancel</button>
+                <button type="submit" style={{ padding: '8px 18px', borderRadius: 'var(--radius-md)', background: 'var(--accent-primary)', color: 'white', border: 'none', fontWeight: '600', cursor: 'pointer' }}>Create Task</button>
               </div>
             </form>
           </div>

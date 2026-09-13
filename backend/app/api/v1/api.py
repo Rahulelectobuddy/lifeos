@@ -300,22 +300,12 @@ async def update_note(note_id: str, note_update: schemas.NoteUpdate, db: AsyncSe
     stmt = select(Note).where(Note.id == note_id).where(Note.workspace_id == DEFAULT_WS_ID)
     res = await db.execute(stmt)
     note = res.scalar_one_or_none()
-    update_data = note_update.model_dump(exclude_unset=True)
     if not note:
-        note = Note(
-            id=note_id,
-            workspace_id=DEFAULT_WS_ID,
-            title=update_data.get("title", "Untitled Note"),
-            content=update_data.get("content", ""),
-            para_category=update_data.get("para_category", "Resource"),
-            folder_path=update_data.get("folder_path", "General"),
-            tags=update_data.get("tags", ""),
-            is_pinned=update_data.get("is_pinned", False)
-        )
-        db.add(note)
-    else:
-        for field, val in update_data.items():
-            setattr(note, field, val)
+        raise HTTPException(status_code=404, detail="Note not found")
+    
+    update_data = note_update.model_dump(exclude_unset=True)
+    for field, val in update_data.items():
+        setattr(note, field, val)
     
     await db.commit()
     await db.refresh(note)
@@ -369,23 +359,12 @@ async def update_task(task_id: str, task_update: schemas.TaskUpdate, db: AsyncSe
     stmt = select(Task).where(Task.id == task_id).where(Task.workspace_id == DEFAULT_WS_ID)
     res = await db.execute(stmt)
     task = res.scalar_one_or_none()
-    update_data = task_update.model_dump(exclude_unset=True)
     if not task:
-        task = Task(
-            id=task_id,
-            workspace_id=DEFAULT_WS_ID,
-            title=update_data.get("title", "Untitled Task"),
-            description=update_data.get("description", ""),
-            status=update_data.get("status", "todo"),
-            priority=update_data.get("priority", "medium"),
-            para_category=update_data.get("para_category", "Project"),
-            target_name=update_data.get("target_name", ""),
-            due_date=update_data.get("due_date", "")
-        )
-        db.add(task)
-    else:
-        for field, val in update_data.items():
-            setattr(task, field, val)
+        raise HTTPException(status_code=404, detail="Task not found")
+
+    update_data = task_update.model_dump(exclude_unset=True)
+    for field, val in update_data.items():
+        setattr(task, field, val)
     
     await db.commit()
     await db.refresh(task)
@@ -433,21 +412,12 @@ async def update_project(project_id: str, project_update: schemas.ProjectUpdate,
     stmt = select(Project).where(Project.id == project_id).where(Project.workspace_id == DEFAULT_WS_ID)
     res = await db.execute(stmt)
     project = res.scalar_one_or_none()
-    update_data = project_update.model_dump(exclude_unset=True)
     if not project:
-        project = Project(
-            id=project_id,
-            workspace_id=DEFAULT_WS_ID,
-            title=update_data.get("title", "Untitled Project"),
-            description=update_data.get("description", ""),
-            progress=update_data.get("progress", 0),
-            target_date=update_data.get("target_date", ""),
-            status=update_data.get("status", "active")
-        )
-        db.add(project)
-    else:
-        for field, val in update_data.items():
-            setattr(project, field, val)
+        raise HTTPException(status_code=404, detail="Project not found")
+
+    update_data = project_update.model_dump(exclude_unset=True)
+    for field, val in update_data.items():
+        setattr(project, field, val)
     
     await db.commit()
     await db.refresh(project)
@@ -513,20 +483,12 @@ async def update_area(area_id: str, area_update: schemas.AreaUpdate, db: AsyncSe
     stmt = select(Area).where(Area.id == area_id).where(Area.workspace_id == DEFAULT_WS_ID)
     res = await db.execute(stmt)
     area = res.scalar_one_or_none()
-    update_data = area_update.model_dump(exclude_unset=True)
     if not area:
-        area = Area(
-            id=area_id,
-            workspace_id=DEFAULT_WS_ID,
-            name=update_data.get("name", "Untitled Area"),
-            description=update_data.get("description", ""),
-            icon=update_data.get("icon", ""),
-            color=update_data.get("color", "")
-        )
-        db.add(area)
-    else:
-        for field, val in update_data.items():
-            setattr(area, field, val)
+        raise HTTPException(status_code=404, detail="Area not found")
+
+    update_data = area_update.model_dump(exclude_unset=True)
+    for field, val in update_data.items():
+        setattr(area, field, val)
     
     await db.commit()
     await db.refresh(area)
